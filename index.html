@@ -1,0 +1,512 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Inventario de Confituras</title>
+  <style>
+    :root {
+      --bg: #ffffff;
+      --text: #000000;
+      --card-bg: #f5f5f5;
+      --border: #ddd;
+      --btn-bg: #4CAF50;
+      --btn-text: white;
+      --btn-del: #f44336;
+      --accent: #ff9800;
+      --low-stock: #ff5722;
+    }
+
+    .dark-mode {
+      --bg: #121212;
+      --text: #e0e0e0;
+      --card-bg: #1e1e1e;
+      --border: #444;
+      --btn-bg: #45a049;
+      --btn-del: #d32f2f;
+      --accent: #ff9800;
+      --low-stock: #ff6e40;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+
+    body {
+      background-color: var(--bg);
+      color: var(--text);
+      padding: 16px;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+    }
+
+    button#theme-toggle {
+      background: none;
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+
+    .form-group {
+      margin-bottom: 12px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 4px;
+      font-weight: bold;
+    }
+
+    input, select {
+      width: 100%;
+      padding: 8px;
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      background: var(--bg);
+      color: var(--text);
+    }
+
+    button {
+      padding: 8px 12px;
+      margin-top: 8px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .btn-add {
+      background-color: var(--btn-bg);
+      color: var(--btn-text);
+    }
+
+    .btn-export {
+      background-color: var(--accent);
+      color: white;
+      margin-top: 16px;
+    }
+
+    .product-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+
+    .product-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+
+    .stock {
+      font-weight: bold;
+      color: var(--accent);
+    }
+
+    .low-stock {
+      color: var(--low-stock) !important;
+    }
+
+    .actions {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .btn-sell, .btn-buy {
+      flex: 1;
+      min-width: 100px;
+    }
+
+    .btn-delete {
+      background-color: var(--btn-del);
+      color: white;
+      width: 100%;
+      margin-top: 8px;
+    }
+
+    canvas {
+      width: 100%;
+      height: 200px;
+      margin-top: 24px;
+      background: var(--card-bg);
+      border-radius: 8px;
+    }
+
+    /* Toast container */
+    #toast-container {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    @media (min-width: 768px) {
+      .container {
+        max-width: 1000px;
+        margin: 0 auto;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 24px;
+      }
+    }
+  </style>
+</head>
+<body class="light-mode">
+  <div class="container">
+    <header>
+      <h1>📦 Inventario de Confituras</h1>
+      <button id="theme-toggle" aria-label="Cambiar modo claro/oscuro">🌙 / ☀️</button>
+    </header>
+
+    <!-- Formulario de nuevo producto -->
+    <div class="form-group">
+      <label for="name">Nombre de la confitura</label>
+      <input type="text" id="name" placeholder="Ej: Mora, Fresa, Naranja..." />
+    </div>
+
+    <div class="form-group">
+      <label for="buyType">Compra por:</label>
+      <select id="buyType">
+        <option value="unit">Unidad</option>
+        <option value="box">Caja</option>
+      </select>
+    </div>
+
+    <div class="form-group" id="unitsPerBoxGroup" style="display:none;">
+      <label for="unitsPerBox">Unidades por caja</label>
+      <input type="number" id="unitsPerBox" min="1" value="12" />
+    </div>
+
+    <div class="form-group">
+      <label for="buyPrice">Precio de compra ($)</label>
+      <input type="number" id="buyPrice" step="0.01" min="0" placeholder="0.00" />
+    </div>
+
+    <div class="form-group">
+      <label for="sellPrice">Precio de venta ($)</label>
+      <input type="number" id="sellPrice" step="0.01" min="0" placeholder="0.00" />
+    </div>
+
+    <button class="btn-add" onclick="addProduct()">➕ Agregar Confitura</button>
+    <button class="btn-export" onclick="exportToCSV()">📤 Exportar a CSV</button>
+
+    <!-- Búsqueda -->
+    <div class="form-group" style="margin-top: 24px;">
+      <label for="search">Buscar confitura</label>
+      <input type="text" id="search" placeholder="Ej: Mora..." />
+    </div>
+
+    <!-- Lista de productos -->
+    <div id="productsList"></div>
+
+    <!-- Gráfica -->
+    <h2>📊 Productos más vendidos</h2>
+    <canvas id="salesChart"></canvas>
+  </div>
+
+  <!-- Contenedor de notificaciones -->
+  <div id="toast-container"></div>
+
+  <script>
+    // Tema claro/oscuro
+    const themeToggle = document.getElementById('theme-toggle');
+    const body = document.body;
+    const savedTheme = localStorage.getItem('theme') || 'light';
+    body.classList.toggle('dark-mode', savedTheme === 'dark');
+    themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+
+    themeToggle.addEventListener('click', () => {
+      body.classList.toggle('dark-mode');
+      const isDark = body.classList.contains('dark-mode');
+      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      themeToggle.textContent = isDark ? '☀️' : '🌙';
+      drawChart(); // Redibujar gráfica con nuevo color
+    });
+
+    // Mostrar/Ocultar unidades por caja
+    document.getElementById('buyType').addEventListener('change', function () {
+      document.getElementById('unitsPerBoxGroup').style.display = 
+        this.value === 'box' ? 'block' : 'none';
+    });
+
+    // Cargar productos desde localStorage
+    let products = JSON.parse(localStorage.getItem('products')) || [];
+
+    // Renderizar productos
+    function renderProducts() {
+      const searchTerm = document.getElementById('search').value.toLowerCase();
+      const list = document.getElementById('productsList');
+      list.innerHTML = '';
+
+      const filteredProducts = products.filter(p => 
+        p.name.toLowerCase().includes(searchTerm)
+      );
+
+      filteredProducts.forEach(p => {
+        const originalIndex = products.findIndex(prod => prod === p);
+        const isLowStock = p.stock <= 3;
+        const stockClass = isLowStock ? 'stock low-stock' : 'stock';
+        const stockText = isLowStock ? `⚠️ Stock bajo: ${p.stock}` : `Stock: ${p.stock}`;
+
+        const card = document.createElement('div');
+        card.className = 'product-card';
+        card.innerHTML = `
+          <div class="product-header">
+            <h3>${p.name}</h3>
+            <span class="${stockClass}">${stockText}</span>
+          </div>
+          <p>Compra: $${p.buyPrice.toFixed(2)} (${p.buyType === 'box' ? `caja de ${p.unitsPerBox}` : 'unidad'})</p>
+          <p>Venta: $${p.sellPrice.toFixed(2)}</p>
+          <div class="actions">
+            <button class="btn-sell" onclick="sellProduct(${originalIndex})">Vender 1</button>
+            <button class="btn-buy" onclick="buyMore(${originalIndex})">Comprar más</button>
+          </div>
+          <button class="btn-delete" onclick="deleteProduct(${originalIndex})">🗑️ Eliminar</button>
+        `;
+        list.appendChild(card);
+      });
+
+      drawChart();
+    }
+
+    // Agregar producto
+    function addProduct() {
+      const name = document.getElementById('name').value.trim();
+      const buyType = document.getElementById('buyType').value;
+      const buyPrice = parseFloat(document.getElementById('buyPrice').value);
+      const sellPrice = parseFloat(document.getElementById('sellPrice').value);
+
+      if (!name || isNaN(buyPrice) || isNaN(sellPrice) || buyPrice <= 0 || sellPrice <= 0) {
+        showToast('Por favor, ingresa un nombre válido y precios mayores a $0.', 'error');
+        return;
+      }
+
+      let unitsPerBox = 1;
+      let stock = 0;
+
+      if (buyType === 'box') {
+        unitsPerBox = parseInt(document.getElementById('unitsPerBox').value) || 12;
+        if (unitsPerBox < 1) unitsPerBox = 12;
+        stock = unitsPerBox;
+      } else {
+        stock = 1;
+      }
+
+      const newProduct = {
+        name,
+        buyType,
+        unitsPerBox,
+        buyPrice: parseFloat(buyPrice.toFixed(2)),
+        sellPrice: parseFloat(sellPrice.toFixed(2)),
+        stock,
+        totalSold: 0
+      };
+
+      products.push(newProduct);
+      saveAndRender();
+      resetForm();
+      showToast('✅ Confitura agregada con éxito', 'success');
+    }
+
+    // Vender producto
+    function sellProduct(index) {
+      if (products[index].stock <= 0) {
+        showToast('¡No hay stock disponible!', 'error');
+        return;
+      }
+      products[index].stock -= 1;
+      products[index].totalSold += 1;
+      saveAndRender();
+      showToast('✅ Venta registrada', 'success');
+    }
+
+    // Comprar más del mismo producto
+    function buyMore(index) {
+      if (products[index].buyType === 'box') {
+        products[index].stock += products[index].unitsPerBox;
+      } else {
+        products[index].stock += 1;
+      }
+      saveAndRender();
+      showToast('✅ Stock aumentado', 'success');
+    }
+
+    // Eliminar producto
+    function deleteProduct(index) {
+      const confirmed = confirm('¿Eliminar este producto? Esta acción no se puede deshacer.');
+      if (confirmed) {
+        products.splice(index, 1);
+        saveAndRender();
+        showToast('🗑️ Producto eliminado', 'info');
+      }
+    }
+
+    // Guardar y renderizar
+    function saveAndRender() {
+      try {
+        localStorage.setItem('products', JSON.stringify(products));
+      } catch (e) {
+        showToast('⚠️ No se pudo guardar. Almacenamiento lleno.', 'error');
+      }
+      renderProducts();
+    }
+
+    // Resetear formulario
+    function resetForm() {
+      document.getElementById('name').value = '';
+      document.getElementById('buyPrice').value = '';
+      document.getElementById('sellPrice').value = '';
+      document.getElementById('buyType').value = 'unit';
+      document.getElementById('unitsPerBoxGroup').style.display = 'none';
+      document.getElementById('name').focus();
+    }
+
+    // Dibujar gráfica mejorada
+    function drawChart() {
+      const canvas = document.getElementById('salesChart');
+      const ctx = canvas.getContext('2d');
+      const width = canvas.clientWidth;
+      const height = canvas.clientHeight;
+      canvas.width = width;
+      canvas.height = height;
+
+      const style = getComputedStyle(document.body);
+      const textColor = style.getPropertyValue('--text').trim();
+
+      ctx.clearRect(0, 0, width, height);
+
+      const sorted = [...products]
+        .sort((a, b) => b.totalSold - a.totalSold)
+        .slice(0, 5);
+
+      if (sorted.length === 0) {
+        ctx.fillStyle = textColor;
+        ctx.font = '16px sans-serif';
+        ctx.textAlign = 'left';
+        ctx.fillText('Aún no hay ventas', 20, height / 2);
+        return;
+      }
+
+      const barWidth = (width - 60) / sorted.length;
+      const maxSold = Math.max(...sorted.map(p => p.totalSold));
+      const padding = 20;
+
+      sorted.forEach((p, i) => {
+        const barHeight = maxSold ? (p.totalSold / maxSold) * (height - 60) : 0;
+        const x = i * (barWidth + 10) + 30;
+        const y = height - barHeight - padding;
+
+        ctx.fillStyle = '#4CAF50';
+        ctx.fillRect(x, y, barWidth - 10, barHeight);
+
+        ctx.fillStyle = textColor;
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+
+        const displayName = p.name.length > 12 ? p.name.substring(0, 12) + '...' : p.name;
+        ctx.fillText(displayName, x + (barWidth - 10) / 2, height - 5);
+        ctx.fillText(p.totalSold.toString(), x + (barWidth - 10) / 2, barHeight > 15 ? y - 3 : y + 12);
+      });
+    }
+
+    // Sistema de notificaciones (toasts)
+    function showToast(message, type = 'info') {
+      const toast = document.createElement('div');
+      toast.textContent = message;
+      toast.style.cssText = `
+        padding: 10px 16px;
+        border-radius: 6px;
+        color: white;
+        font-weight: 500;
+        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+        opacity: 0;
+        transform: translateY(20px);
+        transition: opacity 0.3s, transform 0.3s;
+      `;
+
+      const isDark = document.body.classList.contains('dark-mode');
+      const colors = {
+        success: isDark ? '#4CAF50' : '#2E7D32',
+        error: isDark ? '#F44336' : '#C62828',
+        info: isDark ? '#2196F3' : '#0277BD'
+      };
+      toast.style.backgroundColor = colors[type] || colors.info;
+
+      document.getElementById('toast-container').appendChild(toast);
+
+      setTimeout(() => {
+        toast.style.opacity = '1';
+        toast.style.transform = 'translateY(0)';
+      }, 10);
+
+      setTimeout(() => {
+        toast.style.opacity = '0';
+        toast.style.transform = 'translateY(20px)';
+        setTimeout(() => toast.remove(), 300);
+      }, 2700);
+    }
+
+    // Exportar a CSV
+    function exportToCSV() {
+      if (products.length === 0) {
+        showToast('No hay productos para exportar.', 'info');
+        return;
+      }
+
+      const headers = ['Nombre', 'Tipo', 'Unidades por caja', 'Precio compra', 'Precio venta', 'Stock', 'Vendidos'];
+      const rows = products.map(p => [
+        `"${p.name.replace(/"/g, '""')}"`,
+        p.buyType,
+        p.unitsPerBox,
+        p.buyPrice.toFixed(2),
+        p.sellPrice.toFixed(2),
+        p.stock,
+        p.totalSold
+      ]);
+
+      let csvContent = headers.join(',') + '\n' + rows.map(e => e.join(',')).join('\n');
+      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventario_confituras_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('✅ Exportado a CSV', 'success');
+    }
+
+    // Eventos
+    document.getElementById('search').addEventListener('input', renderProducts);
+    document.getElementById('name').focus();
+
+    // Inicializar
+    renderProducts();
+  </script>
+</body>
+</html>
