@@ -3,7 +3,9 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inventario MiPymes Cuba — Offline (FIFO / PROMEDIO)</title>
+  <title>Inventario MiPymes Cuba — Offline (FIFO / PROMEDIO / Excel)</title>
+  <!-- Incluimos la biblioteca SheetJS (xlsx) para exportar a Excel -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root{
       --bg:#ffffff; --text:#111;
@@ -24,16 +26,34 @@
     .btn-primary{background:var(--ok);color:#fff;}
     .btn-accent{background:var(--accent);color:#fff;}
     .btn-secondary{background:#1976d2;color:#fff;}
+    .btn-excel{background:#217346;color:#fff;} /* Verde de Excel */
     .card{background:var(--card-bg);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;}
     .product-card{background:var(--card-bg);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;}
     .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
     .btn-sell{background:#2e7d32;color:#fff;padding:8px 10px;border-radius:6px;border:none;cursor:pointer;}
     .btn-buy{background:#1565c0;color:#fff;padding:8px 10px;border-radius:6px;border:none;cursor:pointer;}
+    .btn-edit{background:#ff9800;color:#fff;padding:8px 10px;border-radius:6px;border:none;cursor:pointer;}
     .btn-del{background:#d32f2f;color:#fff;padding:8px;border-radius:6px;border:none;cursor:pointer;width:100%;}
     canvas{width:100%;height:200px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);}
     #toast-container{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
     details{margin-top:8px;}
-    @media(min-width:900px){.grid{display:grid;grid-template-columns:1fr 420px;gap:20px;}}
+    .search-section { margin-bottom: 12px; }
+    .search-section .form-group { margin-bottom: 8px; }
+    .sort-controls { margin-bottom: 12px; }
+    .sort-controls label { margin-right: 8px; }
+    .sort-controls select { width: auto; }
+    .pagination-controls { display: flex; justify-content: center; gap: 4px; margin-top: 12px; }
+    .pagination-btn { padding: 4px 8px; border: 1px solid var(--border); background: var(--card-bg); color: var(--text); cursor: pointer; border-radius: 4px; }
+    .pagination-btn.active { background: var(--accent); color: white; }
+    .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    @media(min-width:900px){
+        .grid{display:grid;grid-template-columns:1fr 420px;gap:20px;}
+        .search-sort-row { display: flex; gap: 8px; }
+        .search-sort-row > div { flex: 1; }
+    }
+    /* Ajuste responsive para controles */
+    .btn-group-responsive { display: flex; flex-wrap: wrap; gap: 8px; }
+    .btn-group-responsive .btn { flex: 1; min-width: 120px; }
   </style>
 </head>
 <body>
@@ -53,6 +73,7 @@
         <p id="d_totalUnits">Unidades totales: 0</p>
         <p id="d_totalSold">Vendidos totales: 0</p>
         <p id="d_totalValue">Valor inventario: $0.00</p>
+        <p id="d_totalProfit">Ganancia Bruta Total: $0.00</p> <!-- Nueva métrica -->
         <p id="d_topProduct">Más rentable: —</p>
         <p id="d_valuationMethod">Método valuación: FIFO</p>
       </section>
@@ -86,19 +107,35 @@
           <div style="flex:1" class="form-group"><label for="accountCode">Código contable</label><input id="accountCode" placeholder="1.1.01"></div>
         </div>
 
-        <div style="display:flex;gap:8px;">
+        <div style="display:flex;gap:8px;" class="btn-group-responsive">
           <button class="btn btn-primary" id="btn-add">➕ Agregar producto</button>
           <button class="btn btn-accent" id="btn-export-csv">📤 Exportar CSV</button>
           <button class="btn btn-secondary" id="btn-export-json">📦 Exportar JSON</button>
+          <button class="btn btn-excel" id="btn-export-xlsx">📊 Exportar Excel</button> <!-- Nuevo botón -->
         </div>
       </section>
 
-      <section class="card" style="margin-top:12px;">
-        <h3>Buscar</h3>
-        <div class="form-group"><input id="search" placeholder="Buscar por nombre / SKU / proveedor..."></div>
+      <!-- Nueva sección de búsqueda y ordenamiento -->
+      <section class="card search-section">
+        <h3>Buscar y Filtrar</h3>
+        <div class="search-sort-row">
+          <div class="form-group"><input id="search" placeholder="Buscar por nombre / SKU / proveedor..."></div>
+          <div class="form-group sort-controls">
+            <label for="sortSelect">Ordenar por:</label>
+            <select id="sortSelect">
+                <option value="name">Nombre (A-Z)</option>
+                <option value="name-desc">Nombre (Z-A)</option>
+                <option value="stock">Stock (Asc)</option>
+                <option value="stock-desc">Stock (Desc)</option>
+                <option value="profit">Ganancia (Mayor)</option>
+                <option value="totalSold">Vendido (Mayor)</option>
+            </select>
+          </div>
+        </div>
       </section>
 
       <section id="productsList"></section>
+      <div id="paginationControls" class="pagination-controls"></div> <!-- Controles de paginación -->
 
       <section style="margin-top:12px;">
         <h3>📈 Ventas top</h3>
@@ -113,6 +150,8 @@
           <select id="valuationSelect"><option value="FIFO">FIFO</option><option value="PROMEDIO">PROMEDIO</option></select>
         </p>
         <p><button id="btn-clear" class="btn">Limpiar datos (localStorage)</button></p>
+        <p><button id="btn-import-json" class="btn btn-secondary">📥 Importar JSON</button></p> <!-- Nuevo botón -->
+        <input type="file" id="fileInput" accept=".json" style="display: none;"> <!-- Input oculto para importar -->
         <p><small>La app funciona completamente offline (localStorage). Para ventas complejas usa el historial por producto.</small></p>
       </section>
 
@@ -122,9 +161,8 @@
           <li>Al agregar un producto se crea un lote inicial con la cantidad indicada (unidades por caja o 1 unidad).</li>
           <li>Al reponer te pedirá cantidad y coste total (permite valorar correctamente FIFO / PROMEDIO).</li>
           <li>Al vender se calcula el COGS según el método y actualiza profit automáticamente.</li>
-          <li>Exporta CSV/JSON para entregar a contabilidad.</li>
+          <li>Exporta CSV/JSON/Excel para entregar a contabilidad.</li>
           <li>Creador Andres MAG 2025</li>
- 
         </ul>
       </section>
     </aside>
@@ -136,6 +174,9 @@
     // --- Estado inicial y helpers ---
     let products = JSON.parse(localStorage.getItem('products')) || [];
     let valuationMethod = localStorage.getItem('valuationMethod') || 'FIFO';
+    // Estado para paginación
+    let currentPage = 1;
+    const itemsPerPage = 10; // Cantidad de productos por página
 
     const el = id => document.getElementById(id);
     const showToast = (msg, type='info') => {
@@ -163,10 +204,10 @@
         p.buyPrice = Number(p.buyPrice || 0);
         p.sellPrice = Number(p.sellPrice || 0);
         p.reorderLevel = Number(p.reorderLevel || 1);
+        p.profit = Number(p.profit || 0); // Asegurar ganancia
         if (!Array.isArray(p.lots) || p.lots.length === 0) {
           const unitCost = p.unitCost || (p.buyType === 'box' && p.unitsPerBox ? (p.buyPrice / p.unitsPerBox) : (p.buyPrice || 0));
           p.lots = [{ qty: p.stock || 0, unitCost: Number(unitCost || 0), date: new Date().toISOString(), lot: p.lot || '' }];
-          // recompute average unitCost
           const sumQty = p.lots.reduce((s,x)=>s + (Number(x.qty)||0), 0) || 0;
           const sumVal = p.lots.reduce((s,x)=>s + ((Number(x.qty)||0) * (Number(x.unitCost)||0)), 0) || 0;
           p.unitCost = sumQty ? (sumVal / sumQty) : 0;
@@ -178,7 +219,7 @@
     normalizeProducts();
 
     // --- UI helpers ---
-    const escapeHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    const escapeHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'&quot;');
 
     // --- Cálculos de inventario ---
     function computeUnitCostFromBuy(buyPrice, buyType, unitsPerBox){
@@ -187,7 +228,6 @@
       return buyType === 'box' ? (unitsPerBox ? buyPrice / unitsPerBox : buyPrice) : buyPrice;
     }
 
-    // Ajusta p.unitCost a promedio ponderado desde p.lots
     function recomputeUnitCostFromLots(p){
       if (!p.lots || p.lots.length === 0) { p.unitCost = 0; return; }
       const sumQty = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
@@ -214,14 +254,19 @@
         showToast('Nombre y precios válidos son requeridos', 'error');
         return;
       }
-
+      // Validación adicional: Precio de venta debe ser mayor al de compra
       const unitCost = computeUnitCostFromBuy(buyPrice, buyType, unitsPerBox);
-      const initialQty = unitsPerBox; // al crear asumimos la compra inicial de 1 caja o 1 unidad
+      if (sellPrice <= unitCost) {
+         showToast('El precio de venta debe ser mayor al costo unitario.', 'error');
+         return;
+      }
+
+      const initialQty = unitsPerBox;
 
       const p = {
         sku, name, category, supplier, lot, expiryDate,
         buyType, unitsPerBox, buyPrice, unitCost, sellPrice,
-        stock: initialQty, reserved:0,
+        stock: initialQty, reserved:0, // Añadido campo reservado
         reorderLevel, reorderQty: unitsPerBox, accountCode,
         totalSold:0, profit:0,
         history: [{ type:'compra', qty: initialQty, date: new Date().toISOString(), unitCost, docRef: 'inicial' }],
@@ -230,20 +275,19 @@
 
       products.push(p);
       saveAll();
-      renderProducts();
+      renderProducts(); // Ahora llama a la función paginada
       updateDashboard();
       clearForm();
       showToast('Producto agregado', 'success');
     }
 
-    // Reposición (pregunta cantidad y coste total; soporta FIFO y PROMEDIO)
     function buyMore(idx){
       const p = products[idx];
       if (!p) { showToast('Producto no encontrado', 'error'); return; }
 
       const defaultQty = p.buyType === 'box' ? p.unitsPerBox : 1;
       const qtyStr = prompt('Cantidad a comprar (unidades):', String(defaultQty));
-      if (qtyStr === null) return; // cancel
+      if (qtyStr === null) return;
       const qty = Math.max(1, parseInt(qtyStr) || defaultQty);
 
       const totalCostStr = prompt(`Costo total de la compra para ${qty} unidades (ej: 12.50):`, (qty * (p.unitCost || 0)).toFixed(2));
@@ -253,7 +297,6 @@
 
       const unitCost = totalCost / qty;
 
-      // FIFO: añadimos lote; PROMEDIO: recalculamos promedio y comprimimos en 1 lote para simplicidad
       if (valuationMethod === 'PROMEDIO') {
         const currentStock = p.stock || 0;
         const currentValue = currentStock * (p.unitCost || 0);
@@ -267,7 +310,7 @@
       }
 
       p.stock = (p.stock || 0) + qty;
-      p.buyPrice = totalCost; // último precio de compra (total)
+      p.buyPrice = totalCost;
       p.history = p.history || [];
       p.history.push({ type:'compra', qty, date: new Date().toISOString(), unitCost, docRef: '' });
       saveAll();
@@ -276,20 +319,25 @@
       showToast('Stock repuesto', 'success');
     }
 
-    // Venta: toma FIFO o PROMEDIO en cuenta
     function sellProduct(idx){
       const p = products[idx];
       if (!p) { showToast('Producto no encontrado', 'error'); return; }
-      if ((p.stock || 0) <= 0) { showToast('No hay stock', 'error'); return; }
+      if ((p.stock || 0) <= 0) { showToast('No hay stock disponible', 'error'); return; }
 
-      const qtyToSell = 1; // vender 1 unidad (botón)
+      const qtyToSellStr = prompt('Cantidad a vender (unidades):', '1');
+      if (qtyToSellStr === null) return;
+      const qtyToSell = Math.max(1, parseInt(qtyToSellStr) || 1);
+      if (qtyToSell > p.stock) {
+          showToast(`Cantidad a vender (${qtyToSell}) supera el stock disponible (${p.stock}).`, 'error');
+          return;
+      }
+
       let cogs = 0;
 
       if (valuationMethod === 'PROMEDIO') {
         const unitCost = Number(p.unitCost || 0);
         cogs = unitCost * qtyToSell;
         p.stock -= qtyToSell;
-        // ajustar lots si hay (un solo lote esperado)
         if (Array.isArray(p.lots) && p.lots.length) {
           p.lots[0].qty = Math.max(0, p.lots[0].qty - qtyToSell);
           if (p.lots[0].qty === 0) p.lots.shift();
@@ -305,7 +353,6 @@
           if (first.qty <= 0) p.lots.shift();
         }
         if (remaining > 0) {
-          // fallback: use unitCost
           cogs += remaining * (p.unitCost || 0);
           remaining = 0;
         }
@@ -317,16 +364,82 @@
       p.history = p.history || [];
       p.history.push({ type:'venta', qty: qtyToSell, date: new Date().toISOString(), unitCost: cogs / qtyToSell, docRef: '' });
 
-      // profit acumulado: ingresos - COGS
-      p.profit = (p.profit || 0) + ( (p.sellPrice || 0) * qtyToSell - cogs );
+      const revenue = p.sellPrice * qtyToSell;
+      p.profit = (p.profit || 0) + ( revenue - cogs );
 
       saveAll();
       renderProducts();
       updateDashboard();
-      showToast('Venta registrada', 'success');
+      showToast(`Venta de ${qtyToSell} unidad(es) registrada`, 'success');
     }
 
-    // Borrar producto
+    // --- Funcionalidad de Edición ---
+    function editProduct(idx) {
+        const p = products[idx];
+        if (!p) { showToast('Producto no encontrado', 'error'); return; }
+
+        // Llenar el formulario con los datos actuales
+        el('sku').value = p.sku;
+        el('name').value = p.name;
+        el('category').value = p.category;
+        el('supplier').value = p.supplier;
+        el('lot').value = p.lot;
+        el('expiryDate').value = p.expiryDate || '';
+        el('buyType').value = p.buyType;
+        el('unitsPerBox').value = p.unitsPerBox || 1;
+        el('buyPrice').value = p.buyPrice;
+        el('sellPrice').value = p.sellPrice;
+        el('reorderLevel').value = p.reorderLevel;
+        el('accountCode').value = p.accountCode;
+
+        // Mostrar campos de unidades por caja si es necesario
+        el('unitsBoxWrap').style.display = p.buyType === 'box' ? 'block' : 'none';
+
+        // Cambiar el comportamiento del botón de agregar a actualizar
+        const addBtn = el('btn-add');
+        const originalText = addBtn.textContent;
+        addBtn.textContent = '✏️ Actualizar producto';
+        addBtn.onclick = function updateProduct() {
+            const name = el('name').value.trim();
+            const sellPrice = Number(el('sellPrice').value || 0);
+            const reorderLevel = Number(el('reorderLevel').value || 1);
+
+            if(!name || isNaN(sellPrice) || sellPrice < 0){
+                showToast('Nombre y precio de venta válidos son requeridos', 'error');
+                return;
+            }
+
+            // Actualizar propiedades
+            p.name = name;
+            p.category = el('category').value.trim();
+            p.supplier = el('supplier').value.trim();
+            p.lot = el('lot').value.trim();
+            p.expiryDate = el('expiryDate').value || null;
+            p.buyType = el('buyType').value;
+            p.unitsPerBox = p.buyType === 'box' ? Number(el('unitsPerBox').value || 1) : 1;
+            p.buyPrice = Number(el('buyPrice').value || 0);
+            p.sellPrice = sellPrice;
+            p.reorderLevel = reorderLevel;
+            p.accountCode = el('accountCode').value.trim();
+
+            // Recalcular unitCost si cambió el precio de compra
+            if (p.buyPrice !== p.lots[0]?.unitCost * (p.buyType === 'box' ? p.unitsPerBox : 1)) {
+                 p.unitCost = computeUnitCostFromBuy(p.buyPrice, p.buyType, p.unitsPerBox);
+                 if (p.lots && p.lots.length > 0) {
+                     p.lots[0].unitCost = p.unitCost; // Asumiendo que el primer lote refleja el costo actual si se edita
+                 }
+            }
+
+            saveAll();
+            renderProducts();
+            updateDashboard();
+            clearForm();
+            addBtn.textContent = originalText;
+            addBtn.onclick = addProductFromForm; // Restaurar comportamiento original
+            showToast('Producto actualizado', 'success');
+        };
+    }
+
     function deleteProduct(idx){
       if (!products[idx]) { showToast('Producto no encontrado','error'); return; }
       if (!confirm('¿Eliminar producto? Esta acción no se puede deshacer.')) return;
@@ -337,52 +450,159 @@
       showToast('Producto eliminado','success');
     }
 
-    // --- Render UI ---
+    // --- Renderizado con Paginación y Ordenamiento ---
     function renderProducts(){
-      const list = el('productsList'); list.innerHTML = '';
-      const q = (el('search').value || '').toLowerCase();
+        const list = el('productsList');
+        list.innerHTML = '';
 
-      products.forEach((p, idx) => {
-        const match = p.name.toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q) || (p.supplier||'').toLowerCase().includes(q);
-        if (!match) return;
+        const q = (el('search').value || '').toLowerCase();
+        const sortType = el('sortSelect').value;
 
-        const low = (p.stock || 0) <= (p.reorderLevel || 1);
-        const card = document.createElement('div'); card.className = 'product-card';
+        // Filtrar
+        let filteredProducts = products.filter(p => {
+            return p.name.toLowerCase().includes(q) ||
+                   (p.sku||'').toLowerCase().includes(q) ||
+                   (p.supplier||'').toLowerCase().includes(q);
+        });
 
-        let historyHtml = '<em>Sin movimientos</em>';
-        if (Array.isArray(p.history) && p.history.length) {
-          historyHtml = '<ul>' + p.history.slice(-20).reverse().map(h => {
-            return `<li><strong>${escapeHtml(h.type)}</strong> qty:${h.qty} cost:${Number(h.unitCost||0).toFixed(2)} — ${new Date(h.date).toLocaleString()}</li>`;
-          }).join('') + '</ul>';
+        // Ordenar
+        switch (sortType) {
+            case 'name':
+                filteredProducts.sort((a, b) => a.name.localeCompare(b.name));
+                break;
+            case 'name-desc':
+                filteredProducts.sort((a, b) => b.name.localeCompare(a.name));
+                break;
+            case 'stock':
+                filteredProducts.sort((a, b) => (a.stock || 0) - (b.stock || 0));
+                break;
+            case 'stock-desc':
+                filteredProducts.sort((a, b) => (b.stock || 0) - (a.stock || 0));
+                break;
+            case 'profit':
+                filteredProducts.sort((a, b) => (b.profit || 0) - (a.profit || 0));
+                break;
+            case 'totalSold':
+                filteredProducts.sort((a, b) => (b.totalSold || 0) - (a.totalSold || 0));
+                break;
+            default:
+                break; // Sin ordenamiento
         }
 
-        // lots summary
-        const lotsSummary = Array.isArray(p.lots) && p.lots.length
-          ? p.lots.map(L => `(${L.qty} u @ ${Number(L.unitCost||0).toFixed(2)})`).join(' • ')
-          : '—';
+        // Paginación
+        const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
+        currentPage = Math.min(currentPage, totalPages); // Asegurar que la página actual no exceda
+        if (currentPage < 1) currentPage = 1; // Asegurar que la página sea al menos 1
 
-        card.innerHTML = `
-          <div style="display:flex;justify-content:space-between;align-items:center;">
-            <div><strong>${escapeHtml(p.name)}</strong> <small>(${escapeHtml(p.sku)})</small><br><small>${escapeHtml(p.category)} — ${escapeHtml(p.supplier)}</small></div>
-            <div style="text-align:right">
-              <div style="font-weight:700;color:${low ? '#d32f2f' : '#388e3c'}">${low ? '⚠️ Bajo stock' : 'Stock'}: ${p.stock}</div>
-              <div style="font-size:0.85rem">Costo unit: $${Number(p.unitCost||0).toFixed(2)}</div>
-            </div>
-          </div>
-          <p style="margin-top:8px">Lotes: ${escapeHtml(lotsSummary)}</p>
-          <p>Precio venta: $${Number(p.sellPrice||0).toFixed(2)} — Ganancia acumulada: $${Number(p.profit||0).toFixed(2)}</p>
-          <details><summary>📜 Historial (últimos)</summary>${historyHtml}</details>
-          <div class="actions">
-            <button class="btn-sell" onclick="sellProduct(${idx})">Vender 1</button>
-            <button class="btn-buy" onclick="buyMore(${idx})">Reponer</button>
-          </div>
-          <div style="margin-top:8px"><button class="btn-del" onclick="deleteProduct(${idx})">🗑️ Eliminar producto</button></div>
-        `;
-        list.appendChild(card);
-      });
+        const start = (currentPage - 1) * itemsPerPage;
+        const end = start + itemsPerPage;
+        const pageProducts = filteredProducts.slice(start, end);
 
-      drawChart();
+        pageProducts.forEach((p, idx) => {
+            // Calcular el índice real en el array original para los eventos
+            const originalIdx = products.findIndex(item => item.sku === p.sku && item.name === p.name);
+
+            const low = (p.stock || 0) <= (p.reorderLevel || 1);
+            const card = document.createElement('div');
+            card.className = 'product-card';
+
+            let historyHtml = '<em>Sin movimientos</em>';
+            if (Array.isArray(p.history) && p.history.length) {
+                historyHtml = '<ul>' + p.history.slice(-20).reverse().map(h => {
+                    const date = new Date(h.date).toLocaleString();
+                    return `<li><strong>${escapeHtml(h.type)}</strong> qty:${h.qty} cost:${Number(h.unitCost||0).toFixed(2)} — ${date}</li>`;
+                }).join('') + '</ul>';
+            }
+
+            const lotsSummary = Array.isArray(p.lots) && p.lots.length
+                ? p.lots.map(L => `(${L.qty} u @ ${Number(L.unitCost||0).toFixed(2)})`).join(' • ')
+                : '—';
+
+            card.innerHTML = `
+                <div style="display:flex;justify-content:space-between;align-items:center;">
+                    <div><strong>${escapeHtml(p.name)}</strong> <small>(${escapeHtml(p.sku)})</small><br><small>${escapeHtml(p.category)} — ${escapeHtml(p.supplier)}</small></div>
+                    <div style="text-align:right">
+                        <div style="font-weight:700;color:${low ? '#d32f2f' : '#388e3c'}">${low ? '⚠️ Bajo stock' : 'Stock'}: ${p.stock}</div>
+                        <div style="font-size:0.85rem">Costo unit: $${Number(p.unitCost||0).toFixed(2)}</div>
+                        <div style="font-size:0.85rem; color: #4caf50;">Ganancia: $${Number(p.profit||0).toFixed(2)}</div>
+                    </div>
+                </div>
+                <p style="margin-top:8px">Lotes: ${escapeHtml(lotsSummary)}</p>
+                <p>Precio venta: $${Number(p.sellPrice||0).toFixed(2)} — Vendidos: ${p.totalSold}</p>
+                <details><summary>📜 Historial (últimos 20)</summary>${historyHtml}</details>
+                <div class="actions">
+                    <button class="btn-sell" onclick="sellProduct(${originalIdx})">Vender</button>
+                    <button class="btn-buy" onclick="buyMore(${originalIdx})">Reponer</button>
+                    <button class="btn-edit" onclick="editProduct(${originalIdx})">Editar</button>
+                </div>
+                <div style="margin-top:8px"><button class="btn-del" onclick="deleteProduct(${originalIdx})">🗑️ Eliminar producto</button></div>
+            `;
+            list.appendChild(card);
+        });
+
+        // Renderizar controles de paginación
+        renderPaginationControls(totalPages, currentPage, filteredProducts.length);
+        drawChart();
     }
+
+    function renderPaginationControls(totalPages, currentPage, totalItems) {
+        const container = el('paginationControls');
+        container.innerHTML = '';
+
+        if (totalPages <= 1) return; // No mostrar controles si hay una sola página o ninguna
+
+        // Botón Anterior
+        const prevBtn = document.createElement('button');
+        prevBtn.textContent = 'Anterior';
+        prevBtn.className = 'pagination-btn';
+        prevBtn.disabled = currentPage === 1;
+        prevBtn.onclick = () => {
+            if (currentPage > 1) {
+                currentPage--;
+                renderProducts();
+            }
+        };
+        container.appendChild(prevBtn);
+
+        // Botones de página
+        const maxVisiblePages = 5;
+        let startPage = Math.max(1, currentPage - Math.floor(maxVisiblePages / 2));
+        let endPage = Math.min(totalPages, startPage + maxVisiblePages - 1);
+        if (endPage - startPage + 1 < maxVisiblePages) {
+            startPage = Math.max(1, endPage - maxVisiblePages + 1);
+        }
+
+        for (let i = startPage; i <= endPage; i++) {
+            const pageBtn = document.createElement('button');
+            pageBtn.textContent = i;
+            pageBtn.className = `pagination-btn ${i === currentPage ? 'active' : ''}`;
+            pageBtn.onclick = () => {
+                currentPage = i;
+                renderProducts();
+            };
+            container.appendChild(pageBtn);
+        }
+
+        // Botón Siguiente
+        const nextBtn = document.createElement('button');
+        nextBtn.textContent = 'Siguiente';
+        nextBtn.className = 'pagination-btn';
+        nextBtn.disabled = currentPage === totalPages;
+        nextBtn.onclick = () => {
+            if (currentPage < totalPages) {
+                currentPage++;
+                renderProducts();
+            }
+        };
+        container.appendChild(nextBtn);
+
+        // Mostrar info de paginación
+        const info = document.createElement('span');
+        info.textContent = `Página ${currentPage} de ${totalPages} (${totalItems} productos)`;
+        info.style.margin = '0 10px';
+        container.insertBefore(info, nextBtn);
+    }
+
 
     // --- Dashboard & chart ---
     function updateDashboard(){
@@ -390,16 +610,17 @@
       const totalUnits = products.reduce((s,p)=>s + (Number(p.stock)||0),0);
       const totalSold = products.reduce((s,p)=>s + (Number(p.totalSold)||0),0);
       const totalValue = products.reduce((s,p)=> s + ((Number(p.unitCost)||0) * (Number(p.stock)||0)), 0);
+      const totalProfit = products.reduce((s,p)=> s + (Number(p.profit)||0), 0); // Nueva métrica
       const top = [...products].sort((a,b)=> (Number(b.profit)||0) - (Number(a.profit)||0))[0];
 
       el('d_totalProducts').textContent = `Total productos: ${totalProducts}`;
       el('d_totalUnits').textContent = `Unidades totales: ${totalUnits}`;
       el('d_totalSold').textContent = `Vendidos totales: ${totalSold}`;
       el('d_totalValue').textContent = `Valor inventario: $${totalValue.toFixed(2)}`;
-      el('d_topProduct').textContent = `Más rentable: ${top ? `${top.name} ($${Number(top.profit||0).toFixed(2)})` : '—'}`;
+      el('d_totalProfit').textContent = `Ganancia Bruta Total: $${totalProfit.toFixed(2)}`; // Nuevo elemento
+      el('d_topProduct').textContent = `Más rentable: ${top ? `${escapeHtml(top.name)} ($${Number(top.profit||0).toFixed(2)})` : '—'}`;
       el('d_valuationMethod').textContent = `Método valuación: ${valuationMethod}`;
 
-      // notificar stock bajo (solo una vez por carga)
       products.forEach(p => {
         if ((p.stock || 0) <= (p.reorderLevel || 1)) {
           if (!p._notifiedLow) { showToast(`⚠️ Stock bajo en ${p.name}: ${p.stock}`, 'info'); p._notifiedLow = true; }
@@ -412,18 +633,24 @@
     }
 
     function drawChart(){
-      const canvas = el('salesChart'); const ctx = canvas.getContext('2d');
-      const w = canvas.clientWidth, h = canvas.clientHeight; canvas.width = w; canvas.height = h;
+      const canvas = el('salesChart');
+      if (!canvas) return; // Protección si el canvas no existe
+      const ctx = canvas.getContext('2d');
+      const w = canvas.clientWidth, h = canvas.clientHeight;
+      canvas.width = w; canvas.height = h;
       ctx.clearRect(0,0,w,h);
       const sorted = [...products].sort((a,b)=> (Number(b.totalSold)||0) - (Number(a.totalSold)||0)).slice(0,5);
       if (!sorted.length) { ctx.fillStyle = 'var(--text)'; ctx.font='16px sans-serif'; ctx.fillText('No hay ventas aún',20,h/2); return; }
       const barW = (w - 60) / sorted.length, max = Math.max(...sorted.map(s=>s.totalSold||0));
       sorted.forEach((p,i)=>{
-        const sold = p.totalSold || 0; const barH = max ? (sold/max) * (h-60) : 0;
+        const sold = p.totalSold || 0;
+        const barH = max ? (sold/max) * (h-60) : 0;
         const x = i * (barW + 10) + 30, y = h - barH - 20;
-        ctx.fillStyle = '#4caf50'; ctx.fillRect(x,y,Math.max(4, barW - 10), barH);
+        ctx.fillStyle = '#4caf50';
+        ctx.fillRect(x,y,Math.max(4, barW - 10), barH);
         ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text') || '#000';
-        ctx.textAlign='center'; ctx.font='12px sans-serif';
+        ctx.textAlign='center';
+        ctx.font='12px sans-serif';
         const nm = p.name.length > 12 ? p.name.slice(0,12)+'...' : p.name;
         ctx.fillText(nm, x + (barW - 10)/2, h - 6);
         ctx.fillText(String(sold), x + (barW - 10)/2, barH > 15 ? y - 4 : y + 12);
@@ -433,10 +660,8 @@
     // --- Export ---
     function exportToCSV(){
       if (!products.length) { showToast('No hay productos para exportar','info'); return; }
-      const headers = ['sku','name','category','supplier','lot','expiryDate','buyType','unitsPerBox','unitCost','sellPrice','stock','totalSold','profit','reorderLevel','accountCode','lots','history'];
+      const headers = ['sku','name','category','supplier','lot','expiryDate','buyType','unitsPerBox','unitCost','sellPrice','stock','totalSold','profit','reorderLevel','accountCode'];
       const rows = products.map(p => {
-        const lotsJson = JSON.stringify(p.lots || []);
-        const histJson = JSON.stringify(p.history || []);
         return [
           `"${(p.sku||'').replace(/"/g,'""')}"`,
           `"${(p.name||'').replace(/"/g,'""')}"`,
@@ -452,41 +677,144 @@
           p.totalSold || 0,
           (Number(p.profit)||0).toFixed(2),
           p.reorderLevel || '',
-          `"${(p.accountCode||'').replace(/"/g,'""')}"`,
-          `"${lotsJson.replace(/"/g,'""')}"`,
-          `"${histJson.replace(/"/g,'""')}"`
+          `"${(p.accountCode||'').replace(/"/g,'""')}"`
         ].join(',');
       });
       const csv = headers.join(',') + '\n' + rows.join('\n');
       const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
-      a.download = `inventario_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventario_${new Date().toISOString().slice(0,10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
       showToast('CSV exportado', 'success');
     }
 
     function exportToJSON(){
       const dump = { date: new Date().toISOString(), valuationMethod, products };
       const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
-      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
-      a.download = `inventario_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `inventario_${new Date().toISOString().slice(0,10)}.json`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
       showToast('JSON exportado', 'success');
     }
+
+    // --- Exportar a Excel ---
+    function exportToExcel() {
+        if (!products.length) { showToast('No hay productos para exportar', 'info'); return; }
+
+        // Crear una hoja de cálculo a partir de los datos
+        const ws_data = [];
+        // Cabecera
+        ws_data.push(['SKU', 'Nombre', 'Categoría', 'Proveedor', 'Lote', 'Fecha Expiración', 'Tipo Compra', 'Unidades/Caja', 'Costo Unitario', 'Precio Venta', 'Stock', 'Vendido', 'Ganancia', 'Nivel Reorden', 'Código Contable']);
+
+        // Filas de productos
+        products.forEach(p => {
+            ws_data.push([
+                p.sku || '',
+                p.name || '',
+                p.category || '',
+                p.supplier || '',
+                p.lot || '',
+                p.expiryDate || '',
+                p.buyType || '',
+                p.unitsPerBox || '',
+                Number(p.unitCost || 0),
+                Number(p.sellPrice || 0),
+                p.stock || 0,
+                p.totalSold || 0,
+                Number(p.profit || 0),
+                p.reorderLevel || '',
+                p.accountCode || ''
+            ]);
+        });
+
+        // Crear libro y hoja
+        const wb = XLSX.utils.book_new();
+        const ws = XLSX.utils.aoa_to_sheet(ws_data);
+        XLSX.utils.book_append_sheet(wb, ws, "Inventario");
+
+        // Generar y descargar archivo
+        XLSX.writeFile(wb, `inventario_${new Date().toISOString().slice(0,10)}.xlsx`);
+        showToast('Excel exportado', 'success');
+    }
+
+    // --- Importar JSON ---
+    function importFromJSON() {
+        el('fileInput').click(); // Simular clic en input de archivo
+    }
+
+    el('fileInput').addEventListener('change', function(e) {
+        const file = e.target.files[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = function(event) {
+            try {
+                const importedData = JSON.parse(event.target.result);
+                if (importedData.products && Array.isArray(importedData.products)) {
+                    products = importedData.products;
+                    if (importedData.valuationMethod) {
+                        valuationMethod = importedData.valuationMethod;
+                        el('valuationSelect').value = valuationMethod;
+                    }
+                    normalizeProducts(); // Normalizar datos importados
+                    saveAll();
+                    renderProducts();
+                    updateDashboard();
+                    showToast('Datos importados correctamente', 'success');
+                } else {
+                    showToast('El archivo no contiene una estructura de productos válida.', 'error');
+                }
+            } catch (error) {
+                showToast('Error al leer o parsear el archivo JSON.', 'error');
+                console.error(error);
+            }
+        };
+        reader.readAsText(file);
+        // Resetear input para permitir volver a subir el mismo archivo
+        e.target.value = '';
+    });
+
 
     // --- Utilidades UI ---
     function clearForm(){
       ['sku','name','category','supplier','lot','expiryDate','buyPrice','sellPrice','reorderLevel','accountCode'].forEach(id => el(id).value = '');
-      el('buyType').value = 'unit'; el('unitsPerBox').value = 12; el('unitsPerBox').parentElement.style.display = 'none';
+      el('buyType').value = 'unit';
+      el('unitsPerBox').value = 12;
+      el('unitsBoxWrap').style.display = 'none';
+
+      // Restaurar botón de agregar si fue cambiado por editar
+      const addBtn = el('btn-add');
+      if (addBtn.textContent.includes('Actualizar')) {
+          addBtn.textContent = '➕ Agregar producto';
+          addBtn.onclick = addProductFromForm;
+      }
     }
 
     // --- Eventos DOM ---
-    document.getElementById('buyType').addEventListener('change', function(){
+    el('buyType').addEventListener('change', function(){
       el('unitsBoxWrap').style.display = this.value === 'box' ? 'block' : 'none';
     });
 
     el('btn-add').addEventListener('click', addProductFromForm);
     el('btn-export-csv').addEventListener('click', exportToCSV);
     el('btn-export-json').addEventListener('click', exportToJSON);
+    el('btn-export-xlsx').addEventListener('click', exportToExcel); // Nuevo evento
     el('search').addEventListener('input', renderProducts);
+    el('sortSelect').addEventListener('change', function() {
+        currentPage = 1; // Reiniciar a la primera página al cambiar el orden
+        renderProducts();
+    });
+
     el('valuationSelect').value = valuationMethod;
     el('valuationSelect').addEventListener('change', function(){
       valuationMethod = this.value;
@@ -497,8 +825,15 @@
 
     el('btn-clear').addEventListener('click', function(){
       if (!confirm('Eliminar todos los datos del inventario (localStorage)?')) return;
-      localStorage.removeItem('products'); products = []; saveAll(); renderProducts(); updateDashboard(); showToast('Datos eliminados', 'info');
+      localStorage.removeItem('products');
+      products = [];
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Datos eliminados', 'info');
     });
+
+    el('btn-import-json').addEventListener('click', importFromJSON); // Nuevo evento
 
     el('theme-toggle').addEventListener('click', ()=>{
       document.body.classList.toggle('dark-mode');
@@ -508,7 +843,6 @@
     });
 
     el('load-sample').addEventListener('click', function(){
-      // carga de muestra rápida para pruebas
       const sample = [
         { sku:'FRESA-01', name:'Mermelada Fresa', category:'Frutas', supplier:'Proveedor A', lot:'L-001', expiryDate:null,
           buyType:'box', unitsPerBox:12, buyPrice:60, unitCost:5, sellPrice:8, stock:24, reserved:0, reorderLevel:6, reorderQty:12,
@@ -522,19 +856,18 @@
         }
       ];
       products = products.concat(sample);
-      saveAll(); renderProducts(); updateDashboard();
+      saveAll();
+      renderProducts();
+      updateDashboard();
       showToast('Demo cargado', 'success');
     });
 
     // --- Inicialización ---
     (function init(){
-      // cargar tema guardado
       const t = localStorage.getItem('theme') || 'light';
       if (t === 'dark') document.body.classList.add('dark-mode');
       el('theme-toggle').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
-      // normalizar
       normalizeProducts();
-      // set select
       el('valuationSelect').value = valuationMethod;
       renderProducts();
       updateDashboard();
@@ -544,8 +877,8 @@
     // expose functions to global so onclick inline handlers find them
     window.sellProduct = sellProduct;
     window.buyMore = buyMore;
+    window.editProduct = editProduct; // Nuevo
     window.deleteProduct = deleteProduct;
-
   </script>
 </body>
 </html>
