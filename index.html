@@ -1,290 +1,382 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Inventario de Confituras</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Inventario MiPymes Cuba — Offline (FIFO / PROMEDIO)</title>
   <style>
-    :root {
-      --bg: #ffffff;
-      --text: #000000;
-      --card-bg: #f5f5f5;
-      --border: #ddd;
-      --btn-bg: #4CAF50;
-      --btn-text: white;
-      --btn-del: #f44336;
-      --accent: #ff9800;
-      --low-stock: #ff5722;
+    :root{
+      --bg:#ffffff; --text:#111;
+      --card-bg:#f5f5f5; --border:#ddd;
+      --accent:#ff9800; --ok:#4caf50; --err:#d32f2f;
     }
-
-    .dark-mode {
-      --bg: #121212;
-      --text: #e0e0e0;
-      --card-bg: #1e1e1e;
-      --border: #444;
-      --btn-bg: #45a049;
-      --btn-del: #d32f2f;
-      --accent: #ff9800;
-      --low-stock: #ff6e40;
-    }
-
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-
-    body {
-      background-color: var(--bg);
-      color: var(--text);
-      padding: 16px;
-      transition: background-color 0.3s, color 0.3s;
-    }
-
-    header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-
-    h1 {
-      font-size: 1.8rem;
-    }
-
-    button#theme-toggle {
-      background: none;
-      border: 1px solid var(--border);
-      color: var(--text);
-      padding: 6px 12px;
-      border-radius: 6px;
-      cursor: pointer;
-    }
-
-    .form-group {
-      margin-bottom: 12px;
-    }
-
-    label {
-      display: block;
-      margin-bottom: 4px;
-      font-weight: bold;
-    }
-
-    input, select {
-      width: 100%;
-      padding: 8px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: var(--bg);
-      color: var(--text);
-    }
-
-    button {
-      padding: 8px 12px;
-      margin-top: 8px;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-    }
-
-    .btn-add {
-      background-color: var(--btn-bg);
-      color: var(--btn-text);
-    }
-
-    .btn-export {
-      background-color: var(--accent);
-      color: white;
-      margin-top: 16px;
-    }
-
-    .product-card {
-      background: var(--card-bg);
-      border: 1px solid var(--border);
-      border-radius: 8px;
-      padding: 16px;
-      margin-bottom: 16px;
-    }
-
-    .product-header {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 10px;
-    }
-
-    .stock {
-      font-weight: bold;
-      color: var(--accent);
-    }
-
-    .low-stock {
-      color: var(--low-stock) !important;
-    }
-
-    .actions {
-      display: flex;
-      gap: 8px;
-      flex-wrap: wrap;
-    }
-
-    .btn-sell, .btn-buy {
-      flex: 1;
-      min-width: 100px;
-    }
-
-    .btn-delete {
-      background-color: var(--btn-del);
-      color: white;
-      width: 100%;
-      margin-top: 8px;
-    }
-
-    canvas {
-      width: 100%;
-      height: 200px;
-      margin-top: 24px;
-      background: var(--card-bg);
-      border-radius: 8px;
-    }
-
-    /* Toast container */
-    #toast-container {
-      position: fixed;
-      bottom: 20px;
-      right: 20px;
-      z-index: 1000;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    @media (min-width: 768px) {
-      .container {
-        max-width: 1000px;
-        margin: 0 auto;
-      }
-      .grid {
-        display: grid;
-        grid-template-columns: 1fr 1fr;
-        gap: 24px;
-      }
-    }
+    .dark-mode{ --bg:#121212; --text:#e0e0e0; --card-bg:#1e1e1e; --border:#444; --accent:#ffb74d; }
+    *{box-sizing:border-box;margin:0;padding:0;font-family:Inter, "Segoe UI", Arial, sans-serif;}
+    body{background:var(--bg);color:var(--text);padding:18px;transition:.2s;}
+    header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+    h1{font-size:1.5rem;}
+    input,select,button{font:inherit;}
+    .form-group{margin-bottom:10px;}
+    label{display:block;margin-bottom:6px;font-weight:600;}
+    input,select,textarea{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);}
+    .row{display:flex;gap:8px;flex-wrap:wrap;}
+    .btn{padding:10px 12px;border-radius:6px;border:none;cursor:pointer;}
+    .btn-primary{background:var(--ok);color:#fff;}
+    .btn-accent{background:var(--accent);color:#fff;}
+    .btn-secondary{background:#1976d2;color:#fff;}
+    .card{background:var(--card-bg);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;}
+    .product-card{background:var(--card-bg);border:1px solid var(--border);padding:12px;border-radius:8px;margin-bottom:12px;}
+    .actions{display:flex;gap:8px;margin-top:8px;flex-wrap:wrap;}
+    .btn-sell{background:#2e7d32;color:#fff;padding:8px 10px;border-radius:6px;border:none;cursor:pointer;}
+    .btn-buy{background:#1565c0;color:#fff;padding:8px 10px;border-radius:6px;border:none;cursor:pointer;}
+    .btn-del{background:#d32f2f;color:#fff;padding:8px;border-radius:6px;border:none;cursor:pointer;width:100%;}
+    canvas{width:100%;height:200px;border-radius:6px;border:1px solid var(--border);background:var(--card-bg);}
+    #toast-container{position:fixed;right:18px;bottom:18px;display:flex;flex-direction:column;gap:8px;z-index:9999;}
+    details{margin-top:8px;}
+    @media(min-width:900px){.grid{display:grid;grid-template-columns:1fr 420px;gap:20px;}}
   </style>
 </head>
-<body class="light-mode">
-  <div class="container">
-    <header>
-      <h1>📦 Inventario de Confituras</h1>
-      <button id="theme-toggle" aria-label="Cambiar modo claro/oscuro">🌙 / ☀️</button>
-    </header>
-
-    <!-- Formulario de nuevo producto -->
-    <div class="form-group">
-      <label for="name">Nombre de la confitura</label>
-      <input type="text" id="name" placeholder="Ej: Mora, Fresa, Naranja..." />
+<body>
+  <header>
+    <h1>📦 Inventario MiPymes</h1>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <button id="theme-toggle" class="btn">🌙</button>
+      <button id="load-sample" class="btn btn-accent">Demo</button>
     </div>
+  </header>
 
-    <div class="form-group">
-      <label for="buyType">Compra por:</label>
-      <select id="buyType">
-        <option value="unit">Unidad</option>
-        <option value="box">Caja</option>
-      </select>
-    </div>
+  <div class="grid">
+    <main>
+      <section class="card" id="dashboard">
+        <h2>Panel</h2>
+        <p id="d_totalProducts">Total productos: 0</p>
+        <p id="d_totalUnits">Unidades totales: 0</p>
+        <p id="d_totalSold">Vendidos totales: 0</p>
+        <p id="d_totalValue">Valor inventario: $0.00</p>
+        <p id="d_topProduct">Más rentable: —</p>
+        <p id="d_valuationMethod">Método valuación: FIFO</p>
+      </section>
 
-    <div class="form-group" id="unitsPerBoxGroup" style="display:none;">
-      <label for="unitsPerBox">Unidades por caja</label>
-      <input type="number" id="unitsPerBox" min="1" value="12" />
-    </div>
+      <section class="card">
+        <h3>Agregar / Registrar producto</h3>
 
-    <div class="form-group">
-      <label for="buyPrice">Precio de compra ($)</label>
-      <input type="number" id="buyPrice" step="0.01" min="0" placeholder="0.00" />
-    </div>
+        <div class="form-group"><label for="sku">SKU</label><input id="sku" placeholder="CÓDIGO-001"></div>
+        <div class="form-group"><label for="name">Nombre</label><input id="name" placeholder="Mermelada de fresa"></div>
+        <div class="form-group"><label for="category">Categoría</label><input id="category" placeholder="Frutas"></div>
+        <div class="form-group"><label for="supplier">Proveedor</label><input id="supplier" placeholder="Proveedor A"></div>
+        <div class="form-group"><label for="lot">Lote</label><input id="lot" placeholder="Lote-20251009"></div>
+        <div class="form-group"><label for="expiryDate">Fecha expiración</label><input id="expiryDate" type="date"></div>
 
-    <div class="form-group">
-      <label for="sellPrice">Precio de venta ($)</label>
-      <input type="number" id="sellPrice" step="0.01" min="0" placeholder="0.00" />
-    </div>
+        <div class="row">
+          <div style="flex:1">
+            <div class="form-group"><label for="buyType">Compra por</label>
+              <select id="buyType"><option value="unit">Unidad</option><option value="box">Caja</option></select>
+            </div>
+          </div>
+          <div style="width:140px" id="unitsBoxWrap" style="display:none">
+            <div class="form-group"><label for="unitsPerBox">Unidades/caja</label><input id="unitsPerBox" type="number" min="1" value="12"></div>
+          </div>
+        </div>
 
-    <button class="btn-add" onclick="addProduct()">➕ Agregar Confitura</button>
-    <button class="btn-export" onclick="exportToCSV()">📤 Exportar a CSV</button>
+        <div class="form-group"><label for="buyPrice">Precio compra (si caja: total caja) $</label><input id="buyPrice" type="number" step="0.01" min="0"></div>
+        <div class="form-group"><label for="sellPrice">Precio venta por unidad $</label><input id="sellPrice" type="number" step="0.01" min="0"></div>
 
-    <!-- Búsqueda -->
-    <div class="form-group" style="margin-top: 24px;">
-      <label for="search">Buscar confitura</label>
-      <input type="text" id="search" placeholder="Ej: Mora..." />
-    </div>
+        <div class="row">
+          <div style="flex:1" class="form-group"><label for="reorderLevel">Nivel reorden</label><input id="reorderLevel" type="number" min="1" value="5"></div>
+          <div style="flex:1" class="form-group"><label for="accountCode">Código contable</label><input id="accountCode" placeholder="1.1.01"></div>
+        </div>
 
-    <!-- Lista de productos -->
-    <div id="productsList"></div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" id="btn-add">➕ Agregar producto</button>
+          <button class="btn btn-accent" id="btn-export-csv">📤 Exportar CSV</button>
+          <button class="btn btn-secondary" id="btn-export-json">📦 Exportar JSON</button>
+        </div>
+      </section>
 
-    <!-- Gráfica -->
-    <h2>📊 Productos más vendidos</h2>
-    <canvas id="salesChart"></canvas>
+      <section class="card" style="margin-top:12px;">
+        <h3>Buscar</h3>
+        <div class="form-group"><input id="search" placeholder="Buscar por nombre / SKU / proveedor..."></div>
+      </section>
+
+      <section id="productsList"></section>
+
+      <section style="margin-top:12px;">
+        <h3>📈 Ventas top</h3>
+        <canvas id="salesChart"></canvas>
+      </section>
+    </main>
+
+    <aside>
+      <section class="card">
+        <h3>Controles</h3>
+        <p><strong>Método valuación:</strong>
+          <select id="valuationSelect"><option value="FIFO">FIFO</option><option value="PROMEDIO">PROMEDIO</option></select>
+        </p>
+        <p><button id="btn-clear" class="btn">Limpiar datos (localStorage)</button></p>
+        <p><small>La app funciona completamente offline (localStorage). Para ventas complejas usa el historial por producto.</small></p>
+      </section>
+
+      <section class="card">
+        <h3>Instrucciones breves</h3>
+        <ul>
+          <li>Al agregar un producto se crea un lote inicial con la cantidad indicada (unidades por caja o 1 unidad).</li>
+          <li>Al reponer te pedirá cantidad y coste total (permite valorar correctamente FIFO / PROMEDIO).</li>
+          <li>Al vender se calcula el COGS según el método y actualiza profit automáticamente.</li>
+          <li>Exporta CSV/JSON para entregar a contabilidad.</li>
+          <li>Creador Andres MAG 2025</li>
+ 
+        </ul>
+      </section>
+    </aside>
   </div>
 
-  <!-- Contenedor de notificaciones -->
-  <div id="toast-container"></div>
+  <div id="toast-container" aria-live="polite"></div>
 
   <script>
-    // Tema claro/oscuro
-    const themeToggle = document.getElementById('theme-toggle');
-    const body = document.body;
-    const savedTheme = localStorage.getItem('theme') || 'light';
-    body.classList.toggle('dark-mode', savedTheme === 'dark');
-    themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
-
-    themeToggle.addEventListener('click', () => {
-      body.classList.toggle('dark-mode');
-      const isDark = body.classList.contains('dark-mode');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
-      themeToggle.textContent = isDark ? '☀️' : '🌙';
-      drawChart(); // Redibujar gráfica con nuevo color
-    });
-
-    // Mostrar/Ocultar unidades por caja
-    document.getElementById('buyType').addEventListener('change', function () {
-      document.getElementById('unitsPerBoxGroup').style.display = 
-        this.value === 'box' ? 'block' : 'none';
-    });
-
-    // Cargar productos desde localStorage
+    // --- Estado inicial y helpers ---
     let products = JSON.parse(localStorage.getItem('products')) || [];
+    let valuationMethod = localStorage.getItem('valuationMethod') || 'FIFO';
 
-    // Renderizar productos
-    function renderProducts() {
-      const searchTerm = document.getElementById('search').value.toLowerCase();
-      const list = document.getElementById('productsList');
-      list.innerHTML = '';
+    const el = id => document.getElementById(id);
+    const showToast = (msg, type='info') => {
+      const c = el('toast-container');
+      const d = document.createElement('div');
+      d.textContent = msg;
+      d.style.cssText = 'padding:10px 12px;border-radius:8px;color:#fff;font-weight:600;box-shadow:0 6px 18px rgba(0,0,0,.12);opacity:0;transform:translateY(12px);transition:.28s';
+      d.style.backgroundColor = type === 'error' ? '#d32f2f' : type === 'success' ? '#388e3c' : '#1976d2';
+      c.appendChild(d);
+      requestAnimationFrame(()=>{ d.style.opacity='1'; d.style.transform='translateY(0)'; });
+      setTimeout(()=>{ d.style.opacity='0'; d.style.transform='translateY(12px)'; setTimeout(()=>d.remove(),300); }, 2600);
+    };
 
-      const filteredProducts = products.filter(p => 
-        p.name.toLowerCase().includes(searchTerm)
-      );
+    function saveAll(){
+      localStorage.setItem('products', JSON.stringify(products));
+      localStorage.setItem('valuationMethod', valuationMethod);
+    }
 
-      filteredProducts.forEach(p => {
-        const originalIndex = products.findIndex(prod => prod === p);
-        const isLowStock = p.stock <= 3;
-        const stockClass = isLowStock ? 'stock low-stock' : 'stock';
-        const stockText = isLowStock ? `⚠️ Stock bajo: ${p.stock}` : `Stock: ${p.stock}`;
+    // normalize (por si había datos antiguos)
+    function normalizeProducts(){
+      products = products.map(p => {
+        p.stock = Number(p.stock || 0);
+        p.totalSold = Number(p.totalSold || 0);
+        p.unitCost = Number(p.unitCost || 0);
+        p.buyPrice = Number(p.buyPrice || 0);
+        p.sellPrice = Number(p.sellPrice || 0);
+        p.reorderLevel = Number(p.reorderLevel || 1);
+        if (!Array.isArray(p.lots) || p.lots.length === 0) {
+          const unitCost = p.unitCost || (p.buyType === 'box' && p.unitsPerBox ? (p.buyPrice / p.unitsPerBox) : (p.buyPrice || 0));
+          p.lots = [{ qty: p.stock || 0, unitCost: Number(unitCost || 0), date: new Date().toISOString(), lot: p.lot || '' }];
+          // recompute average unitCost
+          const sumQty = p.lots.reduce((s,x)=>s + (Number(x.qty)||0), 0) || 0;
+          const sumVal = p.lots.reduce((s,x)=>s + ((Number(x.qty)||0) * (Number(x.unitCost)||0)), 0) || 0;
+          p.unitCost = sumQty ? (sumVal / sumQty) : 0;
+        }
+        return p;
+      });
+    }
 
-        const card = document.createElement('div');
-        card.className = 'product-card';
+    normalizeProducts();
+
+    // --- UI helpers ---
+    const escapeHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+
+    // --- Cálculos de inventario ---
+    function computeUnitCostFromBuy(buyPrice, buyType, unitsPerBox){
+      buyPrice = Number(buyPrice || 0);
+      unitsPerBox = Number(unitsPerBox || 1);
+      return buyType === 'box' ? (unitsPerBox ? buyPrice / unitsPerBox : buyPrice) : buyPrice;
+    }
+
+    // Ajusta p.unitCost a promedio ponderado desde p.lots
+    function recomputeUnitCostFromLots(p){
+      if (!p.lots || p.lots.length === 0) { p.unitCost = 0; return; }
+      const sumQty = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
+      const sumVal = p.lots.reduce((s,l) => s + ((Number(l.qty)||0) * (Number(l.unitCost)||0)), 0);
+      p.unitCost = sumQty ? (sumVal / sumQty) : 0;
+    }
+
+    // --- CRUD y operaciones ---
+    function addProductFromForm(){
+      const sku = el('sku').value.trim() || `SKU-${Date.now()}`;
+      const name = el('name').value.trim();
+      const category = el('category').value.trim();
+      const supplier = el('supplier').value.trim();
+      const lot = el('lot').value.trim();
+      const expiryDate = el('expiryDate').value || null;
+      const buyType = el('buyType').value;
+      const unitsPerBox = buyType === 'box' ? Number(el('unitsPerBox').value || 1) : 1;
+      const buyPrice = Number(el('buyPrice').value || 0);
+      const sellPrice = Number(el('sellPrice').value || 0);
+      const reorderLevel = Number(el('reorderLevel').value || 1);
+      const accountCode = el('accountCode').value.trim();
+
+      if(!name || isNaN(buyPrice) || isNaN(sellPrice) || buyPrice < 0 || sellPrice < 0){
+        showToast('Nombre y precios válidos son requeridos', 'error');
+        return;
+      }
+
+      const unitCost = computeUnitCostFromBuy(buyPrice, buyType, unitsPerBox);
+      const initialQty = unitsPerBox; // al crear asumimos la compra inicial de 1 caja o 1 unidad
+
+      const p = {
+        sku, name, category, supplier, lot, expiryDate,
+        buyType, unitsPerBox, buyPrice, unitCost, sellPrice,
+        stock: initialQty, reserved:0,
+        reorderLevel, reorderQty: unitsPerBox, accountCode,
+        totalSold:0, profit:0,
+        history: [{ type:'compra', qty: initialQty, date: new Date().toISOString(), unitCost, docRef: 'inicial' }],
+        lots: [{ qty: initialQty, unitCost, date: new Date().toISOString(), lot }]
+      };
+
+      products.push(p);
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      clearForm();
+      showToast('Producto agregado', 'success');
+    }
+
+    // Reposición (pregunta cantidad y coste total; soporta FIFO y PROMEDIO)
+    function buyMore(idx){
+      const p = products[idx];
+      if (!p) { showToast('Producto no encontrado', 'error'); return; }
+
+      const defaultQty = p.buyType === 'box' ? p.unitsPerBox : 1;
+      const qtyStr = prompt('Cantidad a comprar (unidades):', String(defaultQty));
+      if (qtyStr === null) return; // cancel
+      const qty = Math.max(1, parseInt(qtyStr) || defaultQty);
+
+      const totalCostStr = prompt(`Costo total de la compra para ${qty} unidades (ej: 12.50):`, (qty * (p.unitCost || 0)).toFixed(2));
+      if (totalCostStr === null) return;
+      const totalCost = parseFloat(totalCostStr);
+      if (isNaN(totalCost) || totalCost < 0) { showToast('Costo inválido, operación cancelada', 'error'); return; }
+
+      const unitCost = totalCost / qty;
+
+      // FIFO: añadimos lote; PROMEDIO: recalculamos promedio y comprimimos en 1 lote para simplicidad
+      if (valuationMethod === 'PROMEDIO') {
+        const currentStock = p.stock || 0;
+        const currentValue = currentStock * (p.unitCost || 0);
+        const newStock = currentStock + qty;
+        const newAvg = newStock ? ((currentValue + qty * unitCost) / newStock) : unitCost;
+        p.unitCost = Number(newAvg);
+        p.lots = [{ qty: newStock, unitCost: p.unitCost, date: new Date().toISOString(), lot: p.lot || '' }];
+      } else { // FIFO
+        p.lots.push({ qty, unitCost, date: new Date().toISOString(), lot: p.lot || '' });
+        recomputeUnitCostFromLots(p);
+      }
+
+      p.stock = (p.stock || 0) + qty;
+      p.buyPrice = totalCost; // último precio de compra (total)
+      p.history = p.history || [];
+      p.history.push({ type:'compra', qty, date: new Date().toISOString(), unitCost, docRef: '' });
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Stock repuesto', 'success');
+    }
+
+    // Venta: toma FIFO o PROMEDIO en cuenta
+    function sellProduct(idx){
+      const p = products[idx];
+      if (!p) { showToast('Producto no encontrado', 'error'); return; }
+      if ((p.stock || 0) <= 0) { showToast('No hay stock', 'error'); return; }
+
+      const qtyToSell = 1; // vender 1 unidad (botón)
+      let cogs = 0;
+
+      if (valuationMethod === 'PROMEDIO') {
+        const unitCost = Number(p.unitCost || 0);
+        cogs = unitCost * qtyToSell;
+        p.stock -= qtyToSell;
+        // ajustar lots si hay (un solo lote esperado)
+        if (Array.isArray(p.lots) && p.lots.length) {
+          p.lots[0].qty = Math.max(0, p.lots[0].qty - qtyToSell);
+          if (p.lots[0].qty === 0) p.lots.shift();
+        }
+      } else { // FIFO
+        let remaining = qtyToSell;
+        while (remaining > 0 && p.lots && p.lots.length) {
+          const first = p.lots[0];
+          const take = Math.min(remaining, first.qty);
+          cogs += take * Number(first.unitCost || 0);
+          first.qty -= take;
+          remaining -= take;
+          if (first.qty <= 0) p.lots.shift();
+        }
+        if (remaining > 0) {
+          // fallback: use unitCost
+          cogs += remaining * (p.unitCost || 0);
+          remaining = 0;
+        }
+        p.stock -= qtyToSell;
+        recomputeUnitCostFromLots(p);
+      }
+
+      p.totalSold = (p.totalSold || 0) + qtyToSell;
+      p.history = p.history || [];
+      p.history.push({ type:'venta', qty: qtyToSell, date: new Date().toISOString(), unitCost: cogs / qtyToSell, docRef: '' });
+
+      // profit acumulado: ingresos - COGS
+      p.profit = (p.profit || 0) + ( (p.sellPrice || 0) * qtyToSell - cogs );
+
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Venta registrada', 'success');
+    }
+
+    // Borrar producto
+    function deleteProduct(idx){
+      if (!products[idx]) { showToast('Producto no encontrado','error'); return; }
+      if (!confirm('¿Eliminar producto? Esta acción no se puede deshacer.')) return;
+      products.splice(idx,1);
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Producto eliminado','success');
+    }
+
+    // --- Render UI ---
+    function renderProducts(){
+      const list = el('productsList'); list.innerHTML = '';
+      const q = (el('search').value || '').toLowerCase();
+
+      products.forEach((p, idx) => {
+        const match = p.name.toLowerCase().includes(q) || (p.sku||'').toLowerCase().includes(q) || (p.supplier||'').toLowerCase().includes(q);
+        if (!match) return;
+
+        const low = (p.stock || 0) <= (p.reorderLevel || 1);
+        const card = document.createElement('div'); card.className = 'product-card';
+
+        let historyHtml = '<em>Sin movimientos</em>';
+        if (Array.isArray(p.history) && p.history.length) {
+          historyHtml = '<ul>' + p.history.slice(-20).reverse().map(h => {
+            return `<li><strong>${escapeHtml(h.type)}</strong> qty:${h.qty} cost:${Number(h.unitCost||0).toFixed(2)} — ${new Date(h.date).toLocaleString()}</li>`;
+          }).join('') + '</ul>';
+        }
+
+        // lots summary
+        const lotsSummary = Array.isArray(p.lots) && p.lots.length
+          ? p.lots.map(L => `(${L.qty} u @ ${Number(L.unitCost||0).toFixed(2)})`).join(' • ')
+          : '—';
+
         card.innerHTML = `
-          <div class="product-header">
-            <h3>${p.name}</h3>
-            <span class="${stockClass}">${stockText}</span>
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><strong>${escapeHtml(p.name)}</strong> <small>(${escapeHtml(p.sku)})</small><br><small>${escapeHtml(p.category)} — ${escapeHtml(p.supplier)}</small></div>
+            <div style="text-align:right">
+              <div style="font-weight:700;color:${low ? '#d32f2f' : '#388e3c'}">${low ? '⚠️ Bajo stock' : 'Stock'}: ${p.stock}</div>
+              <div style="font-size:0.85rem">Costo unit: $${Number(p.unitCost||0).toFixed(2)}</div>
+            </div>
           </div>
-          <p>Compra: $${p.buyPrice.toFixed(2)} (${p.buyType === 'box' ? `caja de ${p.unitsPerBox}` : 'unidad'})</p>
-          <p>Venta: $${p.sellPrice.toFixed(2)}</p>
+          <p style="margin-top:8px">Lotes: ${escapeHtml(lotsSummary)}</p>
+          <p>Precio venta: $${Number(p.sellPrice||0).toFixed(2)} — Ganancia acumulada: $${Number(p.profit||0).toFixed(2)}</p>
+          <details><summary>📜 Historial (últimos)</summary>${historyHtml}</details>
           <div class="actions">
-            <button class="btn-sell" onclick="sellProduct(${originalIndex})">Vender 1</button>
-            <button class="btn-buy" onclick="buyMore(${originalIndex})">Comprar más</button>
+            <button class="btn-sell" onclick="sellProduct(${idx})">Vender 1</button>
+            <button class="btn-buy" onclick="buyMore(${idx})">Reponer</button>
           </div>
-          <button class="btn-delete" onclick="deleteProduct(${originalIndex})">🗑️ Eliminar</button>
+          <div style="margin-top:8px"><button class="btn-del" onclick="deleteProduct(${idx})">🗑️ Eliminar producto</button></div>
         `;
         list.appendChild(card);
       });
@@ -292,221 +384,168 @@
       drawChart();
     }
 
-    // Agregar producto
-    function addProduct() {
-      const name = document.getElementById('name').value.trim();
-      const buyType = document.getElementById('buyType').value;
-      const buyPrice = parseFloat(document.getElementById('buyPrice').value);
-      const sellPrice = parseFloat(document.getElementById('sellPrice').value);
+    // --- Dashboard & chart ---
+    function updateDashboard(){
+      const totalProducts = products.length;
+      const totalUnits = products.reduce((s,p)=>s + (Number(p.stock)||0),0);
+      const totalSold = products.reduce((s,p)=>s + (Number(p.totalSold)||0),0);
+      const totalValue = products.reduce((s,p)=> s + ((Number(p.unitCost)||0) * (Number(p.stock)||0)), 0);
+      const top = [...products].sort((a,b)=> (Number(b.profit)||0) - (Number(a.profit)||0))[0];
 
-      if (!name || isNaN(buyPrice) || isNaN(sellPrice) || buyPrice <= 0 || sellPrice <= 0) {
-        showToast('Por favor, ingresa un nombre válido y precios mayores a $0.', 'error');
-        return;
-      }
+      el('d_totalProducts').textContent = `Total productos: ${totalProducts}`;
+      el('d_totalUnits').textContent = `Unidades totales: ${totalUnits}`;
+      el('d_totalSold').textContent = `Vendidos totales: ${totalSold}`;
+      el('d_totalValue').textContent = `Valor inventario: $${totalValue.toFixed(2)}`;
+      el('d_topProduct').textContent = `Más rentable: ${top ? `${top.name} ($${Number(top.profit||0).toFixed(2)})` : '—'}`;
+      el('d_valuationMethod').textContent = `Método valuación: ${valuationMethod}`;
 
-      let unitsPerBox = 1;
-      let stock = 0;
+      // notificar stock bajo (solo una vez por carga)
+      products.forEach(p => {
+        if ((p.stock || 0) <= (p.reorderLevel || 1)) {
+          if (!p._notifiedLow) { showToast(`⚠️ Stock bajo en ${p.name}: ${p.stock}`, 'info'); p._notifiedLow = true; }
+        } else {
+          if (p._notifiedLow) p._notifiedLow = false;
+        }
+      });
 
-      if (buyType === 'box') {
-        unitsPerBox = parseInt(document.getElementById('unitsPerBox').value) || 12;
-        if (unitsPerBox < 1) unitsPerBox = 12;
-        stock = unitsPerBox;
-      } else {
-        stock = 1;
-      }
-
-      const newProduct = {
-        name,
-        buyType,
-        unitsPerBox,
-        buyPrice: parseFloat(buyPrice.toFixed(2)),
-        sellPrice: parseFloat(sellPrice.toFixed(2)),
-        stock,
-        totalSold: 0
-      };
-
-      products.push(newProduct);
-      saveAndRender();
-      resetForm();
-      showToast('✅ Confitura agregada con éxito', 'success');
+      saveAll();
     }
 
-    // Vender producto
-    function sellProduct(index) {
-      if (products[index].stock <= 0) {
-        showToast('¡No hay stock disponible!', 'error');
-        return;
-      }
-      products[index].stock -= 1;
-      products[index].totalSold += 1;
-      saveAndRender();
-      showToast('✅ Venta registrada', 'success');
-    }
-
-    // Comprar más del mismo producto
-    function buyMore(index) {
-      if (products[index].buyType === 'box') {
-        products[index].stock += products[index].unitsPerBox;
-      } else {
-        products[index].stock += 1;
-      }
-      saveAndRender();
-      showToast('✅ Stock aumentado', 'success');
-    }
-
-    // Eliminar producto
-    function deleteProduct(index) {
-      const confirmed = confirm('¿Eliminar este producto? Esta acción no se puede deshacer.');
-      if (confirmed) {
-        products.splice(index, 1);
-        saveAndRender();
-        showToast('🗑️ Producto eliminado', 'info');
-      }
-    }
-
-    // Guardar y renderizar
-    function saveAndRender() {
-      try {
-        localStorage.setItem('products', JSON.stringify(products));
-      } catch (e) {
-        showToast('⚠️ No se pudo guardar. Almacenamiento lleno.', 'error');
-      }
-      renderProducts();
-    }
-
-    // Resetear formulario
-    function resetForm() {
-      document.getElementById('name').value = '';
-      document.getElementById('buyPrice').value = '';
-      document.getElementById('sellPrice').value = '';
-      document.getElementById('buyType').value = 'unit';
-      document.getElementById('unitsPerBoxGroup').style.display = 'none';
-      document.getElementById('name').focus();
-    }
-
-    // Dibujar gráfica mejorada
-    function drawChart() {
-      const canvas = document.getElementById('salesChart');
-      const ctx = canvas.getContext('2d');
-      const width = canvas.clientWidth;
-      const height = canvas.clientHeight;
-      canvas.width = width;
-      canvas.height = height;
-
-      const style = getComputedStyle(document.body);
-      const textColor = style.getPropertyValue('--text').trim();
-
-      ctx.clearRect(0, 0, width, height);
-
-      const sorted = [...products]
-        .sort((a, b) => b.totalSold - a.totalSold)
-        .slice(0, 5);
-
-      if (sorted.length === 0) {
-        ctx.fillStyle = textColor;
-        ctx.font = '16px sans-serif';
-        ctx.textAlign = 'left';
-        ctx.fillText('Aún no hay ventas', 20, height / 2);
-        return;
-      }
-
-      const barWidth = (width - 60) / sorted.length;
-      const maxSold = Math.max(...sorted.map(p => p.totalSold));
-      const padding = 20;
-
-      sorted.forEach((p, i) => {
-        const barHeight = maxSold ? (p.totalSold / maxSold) * (height - 60) : 0;
-        const x = i * (barWidth + 10) + 30;
-        const y = height - barHeight - padding;
-
-        ctx.fillStyle = '#4CAF50';
-        ctx.fillRect(x, y, barWidth - 10, barHeight);
-
-        ctx.fillStyle = textColor;
-        ctx.font = '12px sans-serif';
-        ctx.textAlign = 'center';
-
-        const displayName = p.name.length > 12 ? p.name.substring(0, 12) + '...' : p.name;
-        ctx.fillText(displayName, x + (barWidth - 10) / 2, height - 5);
-        ctx.fillText(p.totalSold.toString(), x + (barWidth - 10) / 2, barHeight > 15 ? y - 3 : y + 12);
+    function drawChart(){
+      const canvas = el('salesChart'); const ctx = canvas.getContext('2d');
+      const w = canvas.clientWidth, h = canvas.clientHeight; canvas.width = w; canvas.height = h;
+      ctx.clearRect(0,0,w,h);
+      const sorted = [...products].sort((a,b)=> (Number(b.totalSold)||0) - (Number(a.totalSold)||0)).slice(0,5);
+      if (!sorted.length) { ctx.fillStyle = 'var(--text)'; ctx.font='16px sans-serif'; ctx.fillText('No hay ventas aún',20,h/2); return; }
+      const barW = (w - 60) / sorted.length, max = Math.max(...sorted.map(s=>s.totalSold||0));
+      sorted.forEach((p,i)=>{
+        const sold = p.totalSold || 0; const barH = max ? (sold/max) * (h-60) : 0;
+        const x = i * (barW + 10) + 30, y = h - barH - 20;
+        ctx.fillStyle = '#4caf50'; ctx.fillRect(x,y,Math.max(4, barW - 10), barH);
+        ctx.fillStyle = getComputedStyle(document.body).getPropertyValue('--text') || '#000';
+        ctx.textAlign='center'; ctx.font='12px sans-serif';
+        const nm = p.name.length > 12 ? p.name.slice(0,12)+'...' : p.name;
+        ctx.fillText(nm, x + (barW - 10)/2, h - 6);
+        ctx.fillText(String(sold), x + (barW - 10)/2, barH > 15 ? y - 4 : y + 12);
       });
     }
 
-    // Sistema de notificaciones (toasts)
-    function showToast(message, type = 'info') {
-      const toast = document.createElement('div');
-      toast.textContent = message;
-      toast.style.cssText = `
-        padding: 10px 16px;
-        border-radius: 6px;
-        color: white;
-        font-weight: 500;
-        max-width: 300px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-        opacity: 0;
-        transform: translateY(20px);
-        transition: opacity 0.3s, transform 0.3s;
-      `;
-
-      const isDark = document.body.classList.contains('dark-mode');
-      const colors = {
-        success: isDark ? '#4CAF50' : '#2E7D32',
-        error: isDark ? '#F44336' : '#C62828',
-        info: isDark ? '#2196F3' : '#0277BD'
-      };
-      toast.style.backgroundColor = colors[type] || colors.info;
-
-      document.getElementById('toast-container').appendChild(toast);
-
-      setTimeout(() => {
-        toast.style.opacity = '1';
-        toast.style.transform = 'translateY(0)';
-      }, 10);
-
-      setTimeout(() => {
-        toast.style.opacity = '0';
-        toast.style.transform = 'translateY(20px)';
-        setTimeout(() => toast.remove(), 300);
-      }, 2700);
+    // --- Export ---
+    function exportToCSV(){
+      if (!products.length) { showToast('No hay productos para exportar','info'); return; }
+      const headers = ['sku','name','category','supplier','lot','expiryDate','buyType','unitsPerBox','unitCost','sellPrice','stock','totalSold','profit','reorderLevel','accountCode','lots','history'];
+      const rows = products.map(p => {
+        const lotsJson = JSON.stringify(p.lots || []);
+        const histJson = JSON.stringify(p.history || []);
+        return [
+          `"${(p.sku||'').replace(/"/g,'""')}"`,
+          `"${(p.name||'').replace(/"/g,'""')}"`,
+          `"${(p.category||'').replace(/"/g,'""')}"`,
+          `"${(p.supplier||'').replace(/"/g,'""')}"`,
+          `"${(p.lot||'').replace(/"/g,'""')}"`,
+          p.expiryDate || '',
+          p.buyType || '',
+          p.unitsPerBox || '',
+          (Number(p.unitCost)||0).toFixed(4),
+          (Number(p.sellPrice)||0).toFixed(2),
+          p.stock || 0,
+          p.totalSold || 0,
+          (Number(p.profit)||0).toFixed(2),
+          p.reorderLevel || '',
+          `"${(p.accountCode||'').replace(/"/g,'""')}"`,
+          `"${lotsJson.replace(/"/g,'""')}"`,
+          `"${histJson.replace(/"/g,'""')}"`
+        ].join(',');
+      });
+      const csv = headers.join(',') + '\n' + rows.join('\n');
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
+      a.download = `inventario_${new Date().toISOString().slice(0,10)}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showToast('CSV exportado', 'success');
     }
 
-    // Exportar a CSV
-    function exportToCSV() {
-      if (products.length === 0) {
-        showToast('No hay productos para exportar.', 'info');
-        return;
-      }
-
-      const headers = ['Nombre', 'Tipo', 'Unidades por caja', 'Precio compra', 'Precio venta', 'Stock', 'Vendidos'];
-      const rows = products.map(p => [
-        `"${p.name.replace(/"/g, '""')}"`,
-        p.buyType,
-        p.unitsPerBox,
-        p.buyPrice.toFixed(2),
-        p.sellPrice.toFixed(2),
-        p.stock,
-        p.totalSold
-      ]);
-
-      let csvContent = headers.join(',') + '\n' + rows.map(e => e.join(',')).join('\n');
-      const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `inventario_confituras_${new Date().toISOString().slice(0,10)}.csv`;
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(url);
-      showToast('✅ Exportado a CSV', 'success');
+    function exportToJSON(){
+      const dump = { date: new Date().toISOString(), valuationMethod, products };
+      const blob = new Blob([JSON.stringify(dump, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url;
+      a.download = `inventario_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
+      showToast('JSON exportado', 'success');
     }
 
-    // Eventos
-    document.getElementById('search').addEventListener('input', renderProducts);
-    document.getElementById('name').focus();
+    // --- Utilidades UI ---
+    function clearForm(){
+      ['sku','name','category','supplier','lot','expiryDate','buyPrice','sellPrice','reorderLevel','accountCode'].forEach(id => el(id).value = '');
+      el('buyType').value = 'unit'; el('unitsPerBox').value = 12; el('unitsPerBox').parentElement.style.display = 'none';
+    }
 
-    // Inicializar
-    renderProducts();
+    // --- Eventos DOM ---
+    document.getElementById('buyType').addEventListener('change', function(){
+      el('unitsBoxWrap').style.display = this.value === 'box' ? 'block' : 'none';
+    });
+
+    el('btn-add').addEventListener('click', addProductFromForm);
+    el('btn-export-csv').addEventListener('click', exportToCSV);
+    el('btn-export-json').addEventListener('click', exportToJSON);
+    el('search').addEventListener('input', renderProducts);
+    el('valuationSelect').value = valuationMethod;
+    el('valuationSelect').addEventListener('change', function(){
+      valuationMethod = this.value;
+      localStorage.setItem('valuationMethod', valuationMethod);
+      updateDashboard();
+      showToast(`Método: ${valuationMethod}`, 'info');
+    });
+
+    el('btn-clear').addEventListener('click', function(){
+      if (!confirm('Eliminar todos los datos del inventario (localStorage)?')) return;
+      localStorage.removeItem('products'); products = []; saveAll(); renderProducts(); updateDashboard(); showToast('Datos eliminados', 'info');
+    });
+
+    el('theme-toggle').addEventListener('click', ()=>{
+      document.body.classList.toggle('dark-mode');
+      localStorage.setItem('theme', document.body.classList.contains('dark-mode') ? 'dark' : 'light');
+      el('theme-toggle').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+      drawChart();
+    });
+
+    el('load-sample').addEventListener('click', function(){
+      // carga de muestra rápida para pruebas
+      const sample = [
+        { sku:'FRESA-01', name:'Mermelada Fresa', category:'Frutas', supplier:'Proveedor A', lot:'L-001', expiryDate:null,
+          buyType:'box', unitsPerBox:12, buyPrice:60, unitCost:5, sellPrice:8, stock:24, reserved:0, reorderLevel:6, reorderQty:12,
+          accountCode:'1.1.01', totalSold:10, profit:30, history:[{type:'compra',qty:24,date:new Date().toISOString(),unitCost:5,docRef:'init'}],
+          lots:[{qty:24,unitCost:5,date:new Date().toISOString(),lot:'L-001'}]
+        },
+        { sku:'NARAN-01', name:'Mermelada Naranja', category:'Cítricos', supplier:'Proveedor B', lot:'L-010', expiryDate:null,
+          buyType:'unit', unitsPerBox:1, buyPrice:1.2, unitCost:1.2, sellPrice:2.2, stock:10, reserved:0, reorderLevel:3, reorderQty:5,
+          accountCode:'1.1.01', totalSold:5, profit:5, history:[{type:'compra',qty:10,date:new Date().toISOString(),unitCost:1.2,docRef:'init'}],
+          lots:[{qty:10,unitCost:1.2,date:new Date().toISOString(),lot:'L-010'}]
+        }
+      ];
+      products = products.concat(sample);
+      saveAll(); renderProducts(); updateDashboard();
+      showToast('Demo cargado', 'success');
+    });
+
+    // --- Inicialización ---
+    (function init(){
+      // cargar tema guardado
+      const t = localStorage.getItem('theme') || 'light';
+      if (t === 'dark') document.body.classList.add('dark-mode');
+      el('theme-toggle').textContent = document.body.classList.contains('dark-mode') ? '☀️' : '🌙';
+      // normalizar
+      normalizeProducts();
+      // set select
+      el('valuationSelect').value = valuationMethod;
+      renderProducts();
+      updateDashboard();
+      window.addEventListener('resize', drawChart);
+    })();
+
+    // expose functions to global so onclick inline handlers find them
+    window.sellProduct = sellProduct;
+    window.buyMore = buyMore;
+    window.deleteProduct = deleteProduct;
+
   </script>
 </body>
 </html>
