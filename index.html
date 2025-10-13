@@ -23,9 +23,7 @@
     input,select,button{font:inherit;}
     .form-group{margin-bottom:10px;}
     label{display:block;margin-bottom:6px;font-weight:600;}
-    input,select,textarea{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);transition:border-color 0.2s;}
-    input:focus,select:focus,textarea:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 2px rgba(255,152,0,0.2);}
-    input:invalid{border-color:var(--err);}
+    input,select,textarea{width:100%;padding:8px;border:1px solid var(--border);border-radius:6px;background:var(--bg);color:var(--text);}
     .row{display:flex;gap:8px;flex-wrap:wrap;}
     .btn{padding:10px 12px;border-radius:6px;border:none;cursor:pointer;}
     .btn-primary{background:var(--ok);color:#fff;}
@@ -72,15 +70,10 @@
         <p id="d_totalProducts">Total productos: 0</p>
         <p id="d_totalUnits">Unidades totales: 0</p>
         <p id="d_totalSold">Vendidos totales: 0</p>
-        <p id="d_totalValue">Valor inventario (costo): $0.00</p>
-        <p id="d_totalValueSell">Valor inventario (venta): $0.00</p>
+        <p id="d_totalValue">Valor inventario: $0.00</p>
+        <p id="d_totalInvestment">Valor de inversión: $0.00</p>
         <p id="d_totalProfit">Ganancia Bruta Total: $0.00</p>
         <p id="d_topProduct">Más rentable: —</p>
-        <div style="margin-top:8px;">
-          <input id="paperValue" type="number" placeholder="¿Cuál es tu valor en papel?" style="width:200px; margin-right:8px;">
-          <button id="btn-compare" class="btn btn-accent">📝 Comparar</button>
-        </div>
-        <button id="btn-diagnostic" class="btn btn-secondary" style="margin-top:8px;">🔍 Diagnóstico Detallado</button>
       </section>
 
       <section style="margin-top:12px;">
@@ -92,7 +85,7 @@
         <h3>Agregar producto</h3>
 
         <div class="form-group"><label for="sku">SKU</label><input id="sku" placeholder="CÓDIGO-001"></div>
-        <div class="form-group"><label for="name">Nombre *</label><input id="name" placeholder="Mermelada de fresa" required></div>
+        <div class="form-group"><label for="name">Nombre</label><input id="name" placeholder="Mermelada de fresa"></div>
         <div class="form-group"><label for="category">Categoría</label><input id="category" placeholder="Frutas"></div>
 
         <div class="row">
@@ -106,8 +99,8 @@
           </div>
         </div>
 
-        <div class="form-group"><label for="buyPrice">Precio compra (si caja: total caja) $</label><input id="buyPrice" type="number" step="0.01" min="0.01" required></div>
-        <div class="form-group"><label for="sellPrice">Precio venta por unidad $</label><input id="sellPrice" type="number" step="0.01" min="0.01" required></div>
+        <div class="form-group"><label for="buyPrice">Precio compra (si caja: total caja) $</label><input id="buyPrice" type="number" step="0.01" min="0"></div>
+        <div class="form-group"><label for="sellPrice">Precio venta por unidad $</label><input id="sellPrice" type="number" step="0.01" min="0"></div>
 
         <div style="display:flex;gap:8px;" class="btn-group-responsive">
           <button class="btn btn-primary" id="btn-add">➕ Agregar producto</button>
@@ -217,36 +210,13 @@
     normalizeProducts();
 
     // --- UI helpers ---
-    const escapeHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-    
-    // Función helper para prompts más seguros
-    function safePrompt(message, defaultValue = '') {
-      let result = prompt(message, defaultValue);
-      if (result === null) return null; // Usuario canceló
-      return result.trim();
-    }
-    
-    function safeNumberPrompt(message, defaultValue = 0, allowNegative = false) {
-      let result = safePrompt(message, String(defaultValue));
-      if (result === null) return null;
-      let num = parseFloat(result);
-      if (isNaN(num)) return 0;
-      
-      // Si no se permiten números negativos, devolver 0 para valores negativos
-      if (!allowNegative && num < 0) return 0;
-      
-      return num;
-    }
+    const escapeHtml = s => String(s||'').replace(/&/g,'&amp;').replace(/</g,'<').replace(/>/g,'>').replace(/"/g,'&quot;');
 
     // --- Cálculos de inventario ---
     function computeUnitCostFromBuy(buyPrice, buyType, unitsPerBox){
       buyPrice = Number(buyPrice || 0);
       unitsPerBox = Number(unitsPerBox || 1);
-      // Proteger contra división por cero
-      if (buyType === 'box') {
-        return (unitsPerBox > 0) ? (buyPrice / unitsPerBox) : 0;
-      }
-      return buyPrice;
+      return buyType === 'box' ? (unitsPerBox ? buyPrice / unitsPerBox : buyPrice) : buyPrice;
     }
 
     function recomputeUnitCostFromLots(p){
@@ -255,28 +225,14 @@
         p.stock = 0; // Si no hay lotes, el stock debe ser 0
         return; 
       }
-      
-      // Filtrar lotes con cantidades válidas y positivas
-      p.lots = p.lots.filter(lot => {
-        const qty = Number(lot.qty || 0);
-        const unitCost = Number(lot.unitCost || 0);
-        return qty > 0 && unitCost >= 0; // Permitir costo 0 pero no negativo
-      });
-      
-      if (p.lots.length === 0) {
-        p.unitCost = 0;
-        p.stock = 0;
-        return;
-      }
-      
       const sumQty = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
       const sumVal = p.lots.reduce((s,l) => s + ((Number(l.qty)||0) * (Number(l.unitCost)||0)), 0);
-      p.unitCost = sumQty > 0 ? (sumVal / sumQty) : 0;
+      p.unitCost = sumQty ? (sumVal / sumQty) : 0;
       
       // Verificar consistencia entre stock calculado y stock almacenado
-      if (Math.abs(p.stock - sumQty) > 0.001) { // Usar tolerancia para comparaciones de punto flotante
+      if (p.stock !== sumQty) {
         console.warn(`Inconsistencia detectada en ${p.name}: Stock=${p.stock}, Lotes=${sumQty}. Corrigiendo...`);
-        p.stock = Math.max(0, sumQty); // Asegurar que el stock nunca sea negativo
+        p.stock = sumQty; // Sincronizar stock con lotes
       }
     }
 
@@ -297,68 +253,34 @@
         const buyPrice = Number(el('buyPrice').value || 0);
         const sellPrice = Number(el('sellPrice').value || 0);
 
-        // Validaciones mejoradas
-        if(!name) {
-            showToast('El nombre del producto es requerido', 'error');
-            el('name').focus();
+        if(!name || isNaN(buyPrice) || isNaN(sellPrice) || buyPrice < 0 || sellPrice < 0){
+            showToast('Nombre y precios válidos son requeridos', 'error');
             return;
         }
-        
-        // Verificar SKU duplicado
-        if (products.some(p => p.sku === sku)) {
-            showToast('Ya existe un producto con este SKU. Cambia el SKU o déjalo vacío para auto-generar uno.', 'error');
-            el('sku').focus();
-            return;
-        }
-        
-        if (buyPrice <= 0) {
-            showToast('El precio de compra debe ser mayor a 0', 'error');
-            el('buyPrice').focus();
-            return;
-        }
-        
-        if (sellPrice <= 0) {
-            showToast('El precio de venta debe ser mayor a 0', 'error');
-            el('sellPrice').focus();
-            return;
-        }
-        
-        if (buyType === 'box' && unitsPerBox <= 0) {
-            showToast('Las unidades por caja deben ser mayor a 0', 'error');
-            el('unitsPerBox').focus();
-            return;
-        }
-        
         const unitCost = computeUnitCostFromBuy(buyPrice, buyType, unitsPerBox);
         if (sellPrice <= unitCost) {
-            showToast(`El precio de venta ($${sellPrice.toFixed(2)}) debe ser mayor al costo unitario ($${unitCost.toFixed(2)})`, 'error');
-            el('sellPrice').focus();
+            showToast('El precio de venta debe ser mayor al costo unitario calculado ($' + unitCost.toFixed(2) + ').', 'error');
             return;
         }
 
         // Cantidad inicial: Si es por caja, agregar todas las unidades de la caja; si es por unidad, agregar 1
         const initialQty = buyType === 'box' ? unitsPerBox : 1;
 
-        try {
-            const p = {
-                sku, name, category,
-                buyType, unitsPerBox, buyPrice, unitCost, sellPrice,
-                stock: initialQty, reserved:0,
-                totalSold:0, profit:0,
-                history: [{ type:'compra', qty: initialQty, date: new Date().toISOString(), unitCost, docRef: 'inicial' }],
-                lots: [{ qty: initialQty, unitCost, date: new Date().toISOString() }]
-            };
+        const p = {
+            sku, name, category,
+            buyType, unitsPerBox, buyPrice, unitCost, sellPrice,
+            stock: initialQty, reserved:0,
+            totalSold:0, profit:0,
+            history: [{ type:'compra', qty: initialQty, date: new Date().toISOString(), unitCost, docRef: 'inicial' }],
+            lots: [{ qty: initialQty, unitCost, date: new Date().toISOString() }]
+        };
 
-            products.push(p);
-            saveAll();
-            renderProducts();
-            updateDashboard();
-            clearForm();
-            showToast(`Producto "${name}" agregado con éxito`, 'success');
-        } catch (error) {
-            showToast('Error al agregar el producto. Inténtalo de nuevo.', 'error');
-            console.error('Error adding product:', error);
-        }
+        products.push(p);
+        saveAll();
+        renderProducts();
+        updateDashboard();
+        clearForm();
+        showToast('Producto agregado', 'success');
     }
 
     function buyMore(idx){
@@ -366,44 +288,29 @@
       if (!p) { showToast('Producto no encontrado', 'error'); return; }
 
       const defaultQty = p.buyType === 'box' ? p.unitsPerBox : 1;
-      const qty = safeNumberPrompt(`Cantidad a comprar de "${p.name}" (unidades):`, defaultQty);
-      if (qty === null) return; // Usuario canceló
-      
-      if (qty <= 0) {
-        showToast('La cantidad debe ser mayor a 0', 'error');
-        return;
-      }
+      const qtyStr = prompt('Cantidad a comprar (unidades):', String(defaultQty));
+      if (qtyStr === null) return;
+      const qty = Math.max(1, parseInt(qtyStr) || defaultQty);
 
-      const suggestedCost = (qty * (p.unitCost || 0)).toFixed(2);
-      const totalCost = safeNumberPrompt(`Costo total de la compra para ${qty} unidades:`, suggestedCost);
-      if (totalCost === null) return; // Usuario canceló
-      
-      if (totalCost <= 0) {
-        showToast('El costo total debe ser mayor a 0', 'error');
-        return;
-      }
+      const totalCostStr = prompt(`Costo total de la compra para ${qty} unidades (ej: 12.50):`, (qty * (p.unitCost || 0)).toFixed(2));
+      if (totalCostStr === null) return;
+      const totalCost = parseFloat(totalCostStr);
+      if (isNaN(totalCost) || totalCost < 0) { showToast('Costo inválido, operación cancelada', 'error'); return; }
 
       const unitCost = totalCost / qty;
 
-      try {
-        // Se mantiene FIFO internamente: añadimos nuevo lote
-        p.lots.push({ qty, unitCost, date: new Date().toISOString() });
-        p.stock = (p.stock || 0) + qty;
-        
-        // Recalcular el costo unitario promedio después de agregar el nuevo lote
-        recomputeUnitCostFromLots(p);
-        
-        p.history = p.history || [];
-        p.history.push({ type:'compra', qty, date: new Date().toISOString(), unitCost, docRef: '' });
-        
-        saveAll();
-        renderProducts();
-        updateDashboard();
-        showToast(`Se agregaron ${qty} unidades de "${p.name}" al inventario`, 'success');
-      } catch (error) {
-        showToast('Error al reponer stock. Inténtalo de nuevo.', 'error');
-        console.error('Error buying more:', error);
-      }
+      // Se mantiene FIFO internamente: añadimos nuevo lote
+      p.lots.push({ qty, unitCost, date: new Date().toISOString() });
+      recomputeUnitCostFromLots(p);
+
+      p.stock = (p.stock || 0) + qty;
+      // No actualizamos buyPrice aquí ya que representa el precio base/referencia original
+      p.history = p.history || [];
+      p.history.push({ type:'compra', qty, date: new Date().toISOString(), unitCost, docRef: '' });
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Stock repuesto', 'success');
     }
 
     function sellProduct(idx){
@@ -412,82 +319,63 @@
         
         // Verificar consistencia de inventario antes de la venta
         if (!validateInventoryConsistency(p)) {
-            showToast('Recalculando inventario...', 'info');
+            showToast('Inconsistencia en inventario detectada. Recalculando...', 'info');
             recomputeUnitCostFromLots(p);
         }
         
-        if ((p.stock || 0) <= 0) { 
-            showToast(`"${p.name}" no tiene stock disponible`, 'error'); 
-            return; 
-        }
+        if ((p.stock || 0) <= 0) { showToast('No hay stock disponible', 'error'); return; }
 
-        const qtyToSell = safeNumberPrompt(`Cantidad a vender de "${p.name}" (Stock disponible: ${p.stock}):`, 1);
-        if (qtyToSell === null) return; // Usuario canceló
-        
-        if (qtyToSell <= 0) {
-            showToast('La cantidad a vender debe ser mayor a 0', 'error');
-            return;
-        }
-        
+        const qtyToSellStr = prompt('Cantidad a vender (unidades):', '1');
+        if (qtyToSellStr === null) return;
+        const qtyToSell = Math.max(1, parseInt(qtyToSellStr) || 1);
         if (qtyToSell > p.stock) {
-            showToast(`No puedes vender ${qtyToSell} unidades. Solo hay ${p.stock} en stock`, 'error');
+            showToast(`Cantidad a vender (${qtyToSell}) supera el stock disponible (${p.stock}).`, 'error');
             return;
         }
         
         // Verificar que hay suficientes lotes para la venta
         const totalLotsQty = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
         if (qtyToSell > totalLotsQty) {
-            showToast(`Error de inventario detectado. Recalculando...`, 'error');
-            recomputeUnitCostFromLots(p);
+            showToast(`Error: Stock registrado (${p.stock}) no coincide con lotes disponibles (${totalLotsQty}).`, 'error');
             return;
         }
 
-        try {
-            // FIFO COGS - Crear copia de lotes para no modificar el original en caso de error
-            let lotsCopy = JSON.parse(JSON.stringify(p.lots));
-            let cogs = 0;
-            let remaining = qtyToSell;
+        // FIFO COGS
+        let cogs = 0;
+        let remaining = qtyToSell;
+        const originalLots = [...p.lots]; // Copia para verificar si se modificó
 
-            while (remaining > 0 && lotsCopy.length) {
-                const first = lotsCopy[0];
-                const take = Math.min(remaining, first.qty);
-                cogs += take * Number(first.unitCost || 0);
-                first.qty -= take;
-                remaining -= take;
-                if (first.qty <= 0) lotsCopy.shift();
-            }
-            
-            if (remaining > 0) {
-                showToast('Error en cálculo de inventario. Contacta soporte.', 'error');
-                console.error(`Error crítico: Venta de ${qtyToSell} unidades excede lotes disponibles.`);
-                return;
-            }
-
-            // Si llegamos aquí, todo está bien, aplicar cambios
-            p.lots = lotsCopy;
-            p.stock -= qtyToSell;
-            recomputeUnitCostFromLots(p);
-
-            p.totalSold = (p.totalSold || 0) + qtyToSell;
-            p.history = p.history || [];
-            // Prevenir división por cero
-            const avgUnitCost = qtyToSell > 0 ? (cogs / qtyToSell) : 0;
-            p.history.push({ type:'venta', qty: qtyToSell, date: new Date().toISOString(), unitCost: avgUnitCost, docRef: '' });
-
-            const revenue = p.sellPrice * qtyToSell;
-            const saleProfit = revenue - cogs;
-            p.profit = (p.profit || 0) + saleProfit;
-
-            saveAll();
-            renderProducts();
-            updateDashboard();
-            
-            const profitMsg = saleProfit > 0 ? ` (Ganancia: $${saleProfit.toFixed(2)})` : '';
-            showToast(`Venta registrada: ${qtyToSell} unidades de "${p.name}"${profitMsg}`, 'success');
-        } catch (error) {
-            showToast('Error al procesar la venta. Inténtalo de nuevo.', 'error');
-            console.error('Error selling product:', error);
+        while (remaining > 0 && p.lots && p.lots.length) {
+            const first = p.lots[0];
+            const take = Math.min(remaining, first.qty);
+            cogs += take * Number(first.unitCost || 0);
+            first.qty -= take;
+            remaining -= take;
+            if (first.qty <= 0) p.lots.shift();
         }
+        if (remaining > 0) {
+            // Error crítico: La venta excede los lotes disponibles
+            // Esto indica un problema de sincronización entre stock y lotes
+            console.error(`Error crítico: Venta de ${qtyToSell} unidades excede lotes disponibles. Stock: ${p.stock}, Lotes restantes insuficientes.`);
+            showToast('Error en cálculo de inventario. Verifique los lotes.', 'error');
+            return; // Cancelar la venta para evitar inconsistencias
+        }
+
+        p.stock -= qtyToSell;
+        // Actualizamos unitCost basado en los lotes restantes después de la venta
+        recomputeUnitCostFromLots(p);
+
+        p.totalSold = (p.totalSold || 0) + qtyToSell;
+        p.history = p.history || [];
+        p.history.push({ type:'venta', qty: qtyToSell, date: new Date().toISOString(), unitCost: cogs / qtyToSell, docRef: '' });
+
+        const revenue = p.sellPrice * qtyToSell;
+        p.profit = (p.profit || 0) + ( revenue - cogs );
+
+        saveAll();
+        renderProducts();
+        updateDashboard();
+        showToast(`Venta de ${qtyToSell} unidad(es) registrada`, 'success');
     }
 
     // --- Funcionalidad de Edición ---
@@ -510,109 +398,51 @@
         // Cambiar el comportamiento del botón de agregar a actualizar
         const addBtn = el('btn-add');
         const originalText = addBtn.textContent;
-        const originalOnClick = addBtn.onclick;
-        
         addBtn.textContent = '✏️ Actualizar producto';
-        addBtn.className = 'btn btn-accent'; // Cambiar color para indicar modo edición
-        
-        function restoreButton() {
-            addBtn.textContent = originalText;
-            addBtn.className = 'btn btn-primary';
-            addBtn.onclick = originalOnClick;
-        }
-        
         addBtn.onclick = function updateProduct() {
             const name = el('name').value.trim();
             const sellPrice = Number(el('sellPrice').value || 0);
-            const newSku = el('sku').value.trim();
 
-            // Validaciones
-            if(!name) {
-                showToast('El nombre del producto es requerido', 'error');
-                el('name').focus();
+            if(!name || isNaN(sellPrice) || sellPrice < 0){
+                showToast('Nombre y precio de venta válidos son requeridos', 'error');
                 return;
             }
-            
-            // Verificar SKU duplicado (excluyendo el producto actual)
-            if (newSku !== p.sku && products.some(prod => prod.sku === newSku)) {
-                showToast('Ya existe otro producto con este SKU', 'error');
-                el('sku').focus();
-                return;
-            }
-            
-            if (sellPrice <= 0) {
-                showToast('El precio de venta debe ser mayor a 0', 'error');
-                el('sellPrice').focus();
-                return;
-            }
-            
-            // Solo validar margen de ganancia si hay stock (si no hay stock, se puede permitir precio igual o menor)
-            if (p.stock > 0 && sellPrice <= p.unitCost) {
-                showToast(`El precio de venta ($${sellPrice.toFixed(2)}) debe ser mayor al costo unitario actual ($${Number(p.unitCost || 0).toFixed(2)})`, 'error');
-                el('sellPrice').focus();
+            // Validación adicional: Precio de venta debe ser mayor al costo unitario actual
+            if (sellPrice <= p.unitCost) {
+                showToast('El precio de venta debe ser mayor al costo unitario actual ($' + p.unitCost.toFixed(2) + ').', 'error');
                 return;
             }
 
-            try {
-                // Actualizar propiedades
-                p.sku = newSku;
-                p.name = name;
-                p.category = el('category').value.trim();
-                p.buyType = el('buyType').value;
-                p.unitsPerBox = p.buyType === 'box' ? Number(el('unitsPerBox').value || 1) : 1;
-                p.buyPrice = Number(el('buyPrice').value || 0);
-                p.sellPrice = sellPrice;
+            // Actualizar propiedades
+            p.name = name;
+            p.category = el('category').value.trim();
+            p.buyType = el('buyType').value;
+            p.unitsPerBox = p.buyType === 'box' ? Number(el('unitsPerBox').value || 1) : 1;
+            p.buyPrice = Number(el('buyPrice').value || 0);
+            p.sellPrice = sellPrice;
+            // El unitCost no se recalcula directamente aquí a partir del nuevo buyPrice
+            // porque no implica una compra nueva. Se mantiene el cálculo basado en lotes.
+            // Si se quisiera actualizar el costo de futuras compras, se actualizaría buyPrice.
+            // Si se quiere actualizar el costo de un lote existente, se debería hacer manualmente o no se debería permitir aquí.
 
-                saveAll();
-                renderProducts();
-                updateDashboard();
-                clearForm();
-                restoreButton();
-                showToast(`Producto "${name}" actualizado con éxito`, 'success');
-            } catch (error) {
-                showToast('Error al actualizar el producto. Inténtalo de nuevo.', 'error');
-                console.error('Error updating product:', error);
-            }
+            saveAll();
+            renderProducts();
+            updateDashboard();
+            clearForm();
+            addBtn.textContent = originalText;
+            addBtn.onclick = addProductFromForm; // Restaurar comportamiento original
+            showToast('Producto actualizado', 'success');
         };
-        
-        // Agregar botón de cancelar
-        if (!el('btn-cancel-edit')) {
-            const cancelBtn = document.createElement('button');
-            cancelBtn.id = 'btn-cancel-edit';
-            cancelBtn.textContent = '❌ Cancelar';
-            cancelBtn.className = 'btn btn-secondary';
-            cancelBtn.style.marginLeft = '8px';
-            cancelBtn.onclick = function() {
-                clearForm();
-                restoreButton();
-                cancelBtn.remove();
-                showToast('Edición cancelada', 'info');
-            };
-            addBtn.parentNode.insertBefore(cancelBtn, addBtn.nextSibling);
-        }
-        
-        showToast(`Editando producto "${p.name}"`, 'info');
     }
 
     function deleteProduct(idx){
-      const p = products[idx];
-      if (!p) { showToast('Producto no encontrado','error'); return; }
-      
-      const confirmMessage = `¿Eliminar "${p.name}"?\n\nStock actual: ${p.stock} unidades\nGanancia acumulada: $${(p.profit || 0).toFixed(2)}\n\nEsta acción no se puede deshacer.`;
-      
-      if (!confirm(confirmMessage)) return;
-      
-      try {
-        const productName = p.name;
-        products.splice(idx,1);
-        saveAll();
-        renderProducts();
-        updateDashboard();
-        showToast(`Producto "${productName}" eliminado`, 'success');
-      } catch (error) {
-        showToast('Error al eliminar el producto. Inténtalo de nuevo.', 'error');
-        console.error('Error deleting product:', error);
-      }
+      if (!products[idx]) { showToast('Producto no encontrado','error'); return; }
+      if (!confirm('¿Eliminar producto? Esta acción no se puede deshacer.')) return;
+      products.splice(idx,1);
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Producto eliminado','success');
     }
 
     // --- Renderizado sin Paginación ---
@@ -711,170 +541,32 @@
       const totalUnits = products.reduce((s,p)=>s + (Number(p.stock)||0),0);
       const totalSold = products.reduce((s,p)=>s + (Number(p.totalSold)||0),0);
       const totalValue = products.reduce((s,p)=> s + ((Number(p.unitCost)||0) * (Number(p.stock)||0)), 0);
-      const totalValueSell = products.reduce((s,p)=> s + ((Number(p.sellPrice)||0) * (Number(p.stock)||0)), 0);
       const totalProfit = products.reduce((s,p)=> s + (Number(p.profit)||0), 0);
       const top = [...products].sort((a,b)=> (Number(b.profit)||0) - (Number(a.profit)||0))[0];
+
+      // Calcular inversión total (costo de todos los productos comprados, sin descontar ventas)
+      let totalInvestment = 0;
+      products.forEach(p => {
+        if (Array.isArray(p.history)) {
+          p.history.forEach(h => {
+            if (h && h.type === 'compra') {
+              const qty = Number(h.qty || 0);
+              const unitCost = Number(h.unitCost || 0);
+              totalInvestment += qty * unitCost;
+            }
+          });
+        }
+      });
 
       el('d_totalProducts').textContent = `Total productos: ${totalProducts}`;
       el('d_totalUnits').textContent = `Unidades totales: ${totalUnits}`;
       el('d_totalSold').textContent = `Vendidos totales: ${totalSold}`;
-      el('d_totalValue').textContent = `Valor inventario (costo): $${totalValue.toFixed(2)}`;
-      el('d_totalValueSell').textContent = `Valor inventario (venta): $${totalValueSell.toFixed(2)}`;
+      el('d_totalValue').textContent = `Valor inventario: $${totalValue.toFixed(2)}`;
+      el('d_totalInvestment').textContent = `Valor de inversión: $${totalInvestment.toFixed(2)}`;
       el('d_totalProfit').textContent = `Ganancia Bruta Total: $${totalProfit.toFixed(2)}`;
       el('d_topProduct').textContent = `Más rentable: ${top ? `${escapeHtml(top.name)} ($${Number(top.profit||0).toFixed(2)})` : '—'}`;
 
       saveAll();
-    }
-
-    // --- Función de comparación ---
-    function compareWithPaper() {
-      const paperValue = Number(el('paperValue').value || 0);
-      if (paperValue <= 0) {
-        showToast('Ingresa el valor que tienes en papel', 'error');
-        el('paperValue').focus();
-        return;
-      }
-
-      if (!products.length) {
-        showToast('No hay productos en el inventario para comparar', 'info');
-        return;
-      }
-
-      const totalCostValue = products.reduce((s,p)=> s + ((Number(p.unitCost)||0) * (Number(p.stock)||0)), 0);
-      const totalSellValue = products.reduce((s,p)=> s + ((Number(p.sellPrice)||0) * (Number(p.stock)||0)), 0);
-      const totalBuyValue = products.reduce((s,p)=> s + ((Number(p.buyPrice)||0) * (Number(p.stock)||0)), 0);
-
-      const diffCost = paperValue - totalCostValue;
-      const diffSell = paperValue - totalSellValue;
-      const diffBuy = paperValue - totalBuyValue;
-
-      let message = `📋 COMPARACIÓN CON TU PAPEL\n\n`;
-      message += `Tu valor en papel: $${paperValue.toFixed(2)}\n\n`;
-      message += `DIFERENCIAS:\n`;
-      // Proteger contra división por cero en los porcentajes
-      const costPercent = totalCostValue > 0 ? ((diffCost/totalCostValue)*100).toFixed(1) : '0.0';
-      const sellPercent = totalSellValue > 0 ? ((diffSell/totalSellValue)*100).toFixed(1) : '0.0';
-      const buyPercent = totalBuyValue > 0 ? ((diffBuy/totalBuyValue)*100).toFixed(1) : '0.0';
-      
-      message += `• vs Valor costo (FIFO): $${diffCost.toFixed(2)} (${diffCost >= 0 ? '+' : ''}${costPercent}%)\n`;
-      message += `• vs Valor venta: $${diffSell.toFixed(2)} (${diffSell >= 0 ? '+' : ''}${sellPercent}%)\n`;
-      message += `• vs Precio compra orig: $${diffBuy.toFixed(2)} (${diffBuy >= 0 ? '+' : ''}${buyPercent}%)\n\n`;
-
-      // Determinar cuál está más cerca
-      const absDiffCost = Math.abs(diffCost);
-      const absDiffSell = Math.abs(diffSell);
-      const absDiffBuy = Math.abs(diffBuy);
-      const minDiff = Math.min(absDiffCost, absDiffSell, absDiffBuy);
-
-      let closest = '';
-      if (minDiff === absDiffCost) closest = 'valor costo (FIFO)';
-      else if (minDiff === absDiffSell) closest = 'valor venta';
-      else closest = 'precio compra original';
-
-      message += `🎯 MÁS CERCANO: Tu papel se parece más al ${closest}\n`;
-      message += `   Diferencia: $${minDiff.toFixed(2)}\n\n`;
-
-      if (minDiff > paperValue * 0.05) { // Si la diferencia es mayor al 5%
-        message += `⚠️ RECOMENDACIONES:\n`;
-        message += `• Revisa que todos los productos estén ingresados\n`;
-        message += `• Verifica las cantidades de stock\n`;
-        message += `• Confirma que los precios sean correctos\n`;
-        message += `• Usa "Diagnóstico Detallado" para ver producto por producto`;
-      } else {
-        message += `✅ La diferencia es menor al 5%, probablemente normal.`;
-      }
-
-      alert(message);
-    }
-
-    // --- Función de diagnóstico ---
-    function showDiagnostic() {
-      if (!products.length) {
-        showToast('No hay productos en el inventario', 'info');
-        return;
-      }
-
-      let diagnosticText = '📊 DIAGNÓSTICO DE INVENTARIO\n\n';
-      
-      let totalCostValue = 0;
-      let totalSellValue = 0;
-      let totalBuyPrice = 0;
-      
-      diagnosticText += 'PRODUCTO | STOCK | COSTO UNIT | PRECIO VENTA | VALOR COSTO | VALOR VENTA | PRECIO COMPRA ORIG\n';
-      diagnosticText += ''.padEnd(100, '-') + '\n';
-      
-      products.forEach(p => {
-        const stock = Number(p.stock || 0);
-        const unitCost = Number(p.unitCost || 0);
-        const sellPrice = Number(p.sellPrice || 0);
-        const buyPrice = Number(p.buyPrice || 0);
-        
-        const costValue = stock * unitCost;
-        const sellValue = stock * sellPrice;
-        const buyValue = stock * buyPrice;
-        
-        totalCostValue += costValue;
-        totalSellValue += sellValue;
-        totalBuyPrice += buyValue;
-        
-        const name = p.name.length > 15 ? p.name.substring(0, 15) + '...' : p.name;
-        diagnosticText += `${name.padEnd(18)} | ${stock.toString().padStart(5)} | ${unitCost.toFixed(2).padStart(10)} | ${sellPrice.toFixed(2).padStart(12)} | ${costValue.toFixed(2).padStart(11)} | ${sellValue.toFixed(2).padStart(11)} | ${buyPrice.toFixed(2).padStart(15)}\n`;
-      });
-      
-      diagnosticText += ''.padEnd(100, '-') + '\n';
-      diagnosticText += `TOTALES:                    |       |            |              | ${totalCostValue.toFixed(2).padStart(11)} | ${totalSellValue.toFixed(2).padStart(11)} | ${totalBuyPrice.toFixed(2).padStart(15)}\n\n`;
-      
-      diagnosticText += 'EXPLICACIÓN:\n';
-      diagnosticText += `• Valor inventario (costo): $${totalCostValue.toFixed(2)} - Basado en costo unitario promedio FIFO\n`;
-      diagnosticText += `• Valor inventario (venta): $${totalSellValue.toFixed(2)} - Si vendieras todo al precio actual\n`;
-      diagnosticText += `• Valor precio compra orig: $${totalBuyPrice.toFixed(2)} - Basado en precio de compra original\n\n`;
-      
-      diagnosticText += 'POSIBLES CAUSAS DE DIFERENCIA:\n';
-      diagnosticText += '1. Tu papel usa precios de venta (no costos)\n';
-      diagnosticText += '2. Tu papel usa precios de compra originales\n';
-      diagnosticText += '3. Diferencias en cantidades de stock\n';
-      diagnosticText += '4. Productos no ingresados o mal ingresados\n';
-      diagnosticText += '5. El sistema usa costo promedio FIFO (cambia con reposiciones)\n\n';
-      
-      diagnosticText += `¿Tu valor en papel (114400) se parece más a alguno de estos totales?`;
-      
-      // Crear ventana modal para mostrar diagnóstico
-      const modal = document.createElement('div');
-      modal.style.cssText = `
-        position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
-        background: rgba(0,0,0,0.8); z-index: 10000; display: flex; 
-        align-items: center; justify-content: center; padding: 20px;
-      `;
-      
-      const content = document.createElement('div');
-      content.style.cssText = `
-        background: var(--card-bg); border-radius: 8px; padding: 20px; 
-        max-width: 90%; max-height: 90%; overflow: auto; color: var(--text);
-        border: 1px solid var(--border);
-      `;
-      
-      const pre = document.createElement('pre');
-      pre.textContent = diagnosticText;
-      pre.style.cssText = 'font-family: monospace; font-size: 12px; white-space: pre-wrap; margin-bottom: 15px;';
-      
-      const closeBtn = document.createElement('button');
-      closeBtn.textContent = 'Cerrar';
-      closeBtn.className = 'btn btn-primary';
-      closeBtn.onclick = () => modal.remove();
-      
-      content.appendChild(pre);
-      content.appendChild(closeBtn);
-      modal.appendChild(content);
-      document.body.appendChild(modal);
-      
-      // Cerrar con ESC o click fuera
-      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
-      document.addEventListener('keydown', function escHandler(e) {
-        if (e.key === 'Escape') {
-          modal.remove();
-          document.removeEventListener('keydown', escHandler);
-        }
-      });
     }
 
     function drawChart(){
@@ -985,56 +677,25 @@
         const file = e.target.files[0];
         if (!file) return;
 
-        // Verificar tipo de archivo
-        if (!file.name.toLowerCase().endsWith('.json')) {
-            showToast('Por favor selecciona un archivo JSON válido', 'error');
-            e.target.value = '';
-            return;
-        }
-
         const reader = new FileReader();
         reader.onload = function(event) {
             try {
                 const importedData = JSON.parse(event.target.result);
-                
-                if (!importedData.products || !Array.isArray(importedData.products)) {
-                    showToast('El archivo no contiene una estructura de productos válida', 'error');
-                    return;
+                if (importedData.products && Array.isArray(importedData.products)) {
+                    products = importedData.products;
+                    normalizeProducts(); // Normalizar datos importados
+                    saveAll();
+                    renderProducts();
+                    updateDashboard();
+                    showToast('Datos importados correctamente', 'success');
+                } else {
+                    showToast('El archivo no contiene una estructura de productos válida.', 'error');
                 }
-                
-                if (importedData.products.length === 0) {
-                    showToast('El archivo no contiene productos para importar', 'error');
-                    return;
-                }
-                
-                // Confirmar si hay productos existentes
-                if (products.length > 0) {
-                    const confirmMsg = `Ya tienes ${products.length} productos. ¿Quieres:\n\n` +
-                                     `ACEPTAR: Reemplazar todos los productos existentes\n` +
-                                     `CANCELAR: Mantener productos actuales`;
-                    if (!confirm(confirmMsg)) {
-                        e.target.value = '';
-                        return;
-                    }
-                }
-                
-                products = importedData.products;
-                normalizeProducts(); // Normalizar datos importados
-                saveAll();
-                renderProducts();
-                updateDashboard();
-                showToast(`${products.length} productos importados correctamente`, 'success');
-                
             } catch (error) {
-                showToast('El archivo JSON no es válido o está corrupto', 'error');
-                console.error('Import error:', error);
+                showToast('Error al leer o parsear el archivo JSON.', 'error');
+                console.error(error);
             }
         };
-        
-        reader.onerror = function() {
-            showToast('Error al leer el archivo', 'error');
-        };
-        
         reader.readAsText(file);
         e.target.value = '';
     });
@@ -1051,14 +712,7 @@
       const addBtn = el('btn-add');
       if (addBtn.textContent.includes('Actualizar')) {
           addBtn.textContent = '➕ Agregar producto';
-          addBtn.className = 'btn btn-primary';
           addBtn.onclick = addProductFromForm;
-      }
-      
-      // Remover botón de cancelar si existe
-      const cancelBtn = el('btn-cancel-edit');
-      if (cancelBtn) {
-          cancelBtn.remove();
       }
     }
 
@@ -1085,8 +739,6 @@
     });
 
     el('btn-import-json').addEventListener('click', importFromJSON);
-    el('btn-compare').addEventListener('click', compareWithPaper);
-    el('btn-diagnostic').addEventListener('click', showDiagnostic);
 
     el('theme-toggle').addEventListener('click', ()=>{
       document.body.classList.toggle('dark-mode');
@@ -1096,42 +748,23 @@
     });
 
     el('load-sample').addEventListener('click', function(){
-      // Verificar si ya existen productos demo
-      const hasFresa = products.some(p => p.sku === 'FRESA-01');
-      const hasNaranja = products.some(p => p.sku === 'NARAN-01');
-      
-      if (hasFresa && hasNaranja) {
-        showToast('Los productos de demostración ya están cargados', 'info');
-        return;
-      }
-      
-      const sample = [];
-      
-      if (!hasFresa) {
-        sample.push({
-          sku:'FRESA-01', name:'Mermelada Fresa', category:'Frutas',
+      const sample = [
+        { sku:'FRESA-01', name:'Mermelada Fresa', category:'Frutas',
           buyType:'box', unitsPerBox:12, buyPrice:60, unitCost:5, sellPrice:8, stock:24, reserved:0,
-          totalSold:10, profit:30, history:[{type:'compra',qty:24,date:new Date().toISOString(),unitCost:5,docRef:'inicial'}],
+          totalSold:10, profit:30, history:[{type:'compra',qty:24,date:new Date().toISOString(),unitCost:5,docRef:'init'}],
           lots:[{qty:24,unitCost:5,date:new Date().toISOString()}]
-        });
-      }
-      
-      if (!hasNaranja) {
-        sample.push({
-          sku:'NARAN-01', name:'Mermelada Naranja', category:'Cítricos',
+        },
+        { sku:'NARAN-01', name:'Mermelada Naranja', category:'Cítricos',
           buyType:'unit', unitsPerBox:1, buyPrice:1.2, unitCost:1.2, sellPrice:2.2, stock:10, reserved:0,
-          totalSold:5, profit:5, history:[{type:'compra',qty:10,date:new Date().toISOString(),unitCost:1.2,docRef:'inicial'}],
+          totalSold:5, profit:5, history:[{type:'compra',qty:10,date:new Date().toISOString(),unitCost:1.2,docRef:'init'}],
           lots:[{qty:10,unitCost:1.2,date:new Date().toISOString()}]
-        });
-      }
-      
-      if (sample.length > 0) {
-        products = products.concat(sample);
-        saveAll();
-        renderProducts();
-        updateDashboard();
-        showToast(`${sample.length} producto(s) de demostración agregados`, 'success');
-      }
+        }
+      ];
+      products = products.concat(sample);
+      saveAll();
+      renderProducts();
+      updateDashboard();
+      showToast('Demo cargado', 'success');
     });
 
     // --- Inicialización ---
