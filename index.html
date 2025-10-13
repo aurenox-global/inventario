@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Inventario MiPymes</title>
+  <title>Inventario MiPymes Cuba — Offline (FIFO / Excel)</title>
   <!-- SheetJS integrado localmente como script embebido -->
   <script>
     /* SheetJS v0.18.5 Full Minified Embedded */
@@ -184,14 +184,24 @@
         p.buyPrice = Number(p.buyPrice || 0);
         p.sellPrice = Number(p.sellPrice || 0);
         p.profit = Number(p.profit || 0);
+        p.reserved = Number(p.reserved || 0);
+        
         // Asegurar estructura de lots e history
         if (!Array.isArray(p.lots) || p.lots.length === 0) {
           const unitCost = p.unitCost || (p.buyType === 'box' && p.unitsPerBox ? (p.buyPrice / p.unitsPerBox) : (p.buyPrice || 0));
-          p.lots = [{ qty: p.stock || 0, unitCost: Number(unitCost || 0), date: new Date().toISOString() }];
-          const sumQty = p.lots.reduce((s,x)=>s + (Number(x.qty)||0), 0) || 0;
-          const sumVal = p.lots.reduce((s,x)=>s + ((Number(x.qty)||0) * (Number(x.unitCost)||0)), 0) || 0;
-          p.unitCost = sumQty ? (sumVal / sumQty) : 0;
+          if (p.stock > 0) {
+            p.lots = [{ qty: p.stock, unitCost: Number(unitCost || 0), date: new Date().toISOString() }];
+          } else {
+            p.lots = [];
+          }
         }
+        
+        // Limpiar lotes con cantidad 0 o negativa
+        p.lots = p.lots.filter(lot => Number(lot.qty || 0) > 0);
+        
+        // Recalcular unitCost y verificar consistencia
+        recomputeUnitCostFromLots(p);
+        
         p.history = Array.isArray(p.history) ? p.history : [];
         return p;
       });
@@ -210,10 +220,27 @@
     }
 
     function recomputeUnitCostFromLots(p){
-      if (!p.lots || p.lots.length === 0) { p.unitCost = 0; return; }
+      if (!p.lots || p.lots.length === 0) { 
+        p.unitCost = 0; 
+        p.stock = 0; // Si no hay lotes, el stock debe ser 0
+        return; 
+      }
       const sumQty = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
       const sumVal = p.lots.reduce((s,l) => s + ((Number(l.qty)||0) * (Number(l.unitCost)||0)), 0);
       p.unitCost = sumQty ? (sumVal / sumQty) : 0;
+      
+      // Verificar consistencia entre stock calculado y stock almacenado
+      if (p.stock !== sumQty) {
+        console.warn(`Inconsistencia detectada en ${p.name}: Stock=${p.stock}, Lotes=${sumQty}. Corrigiendo...`);
+        p.stock = sumQty; // Sincronizar stock con lotes
+      }
+    }
+
+    // Función para validar consistencia de inventario
+    function validateInventoryConsistency(p) {
+      if (!p.lots) p.lots = [];
+      const lotsStock = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
+      return p.stock === lotsStock;
     }
 
     // --- CRUD y operaciones ---
@@ -236,7 +263,8 @@
             return;
         }
 
-        const initialQty = unitsPerBox;
+        // Cantidad inicial: Si es por caja, agregar todas las unidades de la caja; si es por unidad, agregar 1
+        const initialQty = buyType === 'box' ? unitsPerBox : 1;
 
         const p = {
             sku, name, category,
@@ -276,7 +304,7 @@
       recomputeUnitCostFromLots(p);
 
       p.stock = (p.stock || 0) + qty;
-      p.buyPrice = totalCost; // Actualizamos el precio de la última compra para futuras referencias
+      // No actualizamos buyPrice aquí ya que representa el precio base/referencia original
       p.history = p.history || [];
       p.history.push({ type:'compra', qty, date: new Date().toISOString(), unitCost, docRef: '' });
       saveAll();
@@ -288,6 +316,13 @@
     function sellProduct(idx){
         const p = products[idx];
         if (!p) { showToast('Producto no encontrado', 'error'); return; }
+        
+        // Verificar consistencia de inventario antes de la venta
+        if (!validateInventoryConsistency(p)) {
+            showToast('Inconsistencia en inventario detectada. Recalculando...', 'info');
+            recomputeUnitCostFromLots(p);
+        }
+        
         if ((p.stock || 0) <= 0) { showToast('No hay stock disponible', 'error'); return; }
 
         const qtyToSellStr = prompt('Cantidad a vender (unidades):', '1');
@@ -295,6 +330,13 @@
         const qtyToSell = Math.max(1, parseInt(qtyToSellStr) || 1);
         if (qtyToSell > p.stock) {
             showToast(`Cantidad a vender (${qtyToSell}) supera el stock disponible (${p.stock}).`, 'error');
+            return;
+        }
+        
+        // Verificar que hay suficientes lotes para la venta
+        const totalLotsQty = p.lots.reduce((s,l) => s + (Number(l.qty)||0), 0);
+        if (qtyToSell > totalLotsQty) {
+            showToast(`Error: Stock registrado (${p.stock}) no coincide con lotes disponibles (${totalLotsQty}).`, 'error');
             return;
         }
 
@@ -312,15 +354,11 @@
             if (first.qty <= 0) p.lots.shift();
         }
         if (remaining > 0) {
-            // Si no hay más lotes, se vende con el último costo promedio o cero
-            // Esto puede ocurrir si el cálculo de unitCost no se actualiza correctamente antes de la venta.
-            // Usamos el unitCost actual como fallback para el cálculo del COGS parcial no cubierto.
-            // Este caso es un error lógico si el stock es correcto, pero lo manejamos.
-            const fallbackUnitCost = p.unitCost || 0;
-            cogs += remaining * fallbackUnitCost;
-            // Ajustar stock si se vendió más de lo que los lotes indicaban
-            // p.stock se reduce al final, no aquí, por lotes.
-            console.warn("Venta excedió lotes disponibles, usando fallback unitCost para COGS.");
+            // Error crítico: La venta excede los lotes disponibles
+            // Esto indica un problema de sincronización entre stock y lotes
+            console.error(`Error crítico: Venta de ${qtyToSell} unidades excede lotes disponibles. Stock: ${p.stock}, Lotes restantes insuficientes.`);
+            showToast('Error en cálculo de inventario. Verifique los lotes.', 'error');
+            return; // Cancelar la venta para evitar inconsistencias
         }
 
         p.stock -= qtyToSell;
