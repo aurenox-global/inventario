@@ -1,110 +1,66 @@
 
-# 💰 FinTrack Pro – Gestión Financiera Personal
+# 🎨 Nexus Design Studio v3.0
 
-Aplicación web progresiva (PWA) diseñada para el control y seguimiento de finanzas personales. Permite registrar ingresos y gastos, visualizar estadísticas, establecer presupuestos por categorías y gestionar metas de ahorro, con todos los datos almacenados localmente en el dispositivo.
+Aplicación web de diseño UI construida en un único archivo HTML (`index.html`). Permite crear y editar capas en un lienzo, ajustar propiedades visuales, generar código y exportar proyectos.
 
-![Versión](https://img.shields.io/badge/versión-2.0-blue)
+![Versión](https://img.shields.io/badge/versión-3.0-blue)
 ![Estado](https://img.shields.io/badge/estado-activo-brightgreen)
 
 ## ✨ Características
 
-- **Dashboard principal** con balance total, ingresos y gastos
-- Registro rápido de transacciones con categorías personalizables
-- **Gráficos interactivos** de tendencias y distribución por categoría
-- Gestión de **presupuestos mensuales** por categoría
-- **Metas de ahorro** con seguimiento de progreso
-- Sistema de **backup y restauración** de datos
-- Exportación de datos a **CSV** (compatible con Excel/Google Sheets)
-- **Tema oscuro/claro** adaptable al sistema
-- **PIN de seguridad** para proteger la aplicación
-- Soporte multi-moneda (USD, EUR, MXN, PEN, GBP)
-- Diseño responsivo optimizado para dispositivos móviles
+- Editor visual con **canvas** (pan, zoom y selección)
+- Gestión de **capas** (crear, seleccionar, duplicar, eliminar, visibilidad y bloqueo)
+- Panel **Inspector** para layout, apariencia y efectos
+- Herramientas de diseño: rectángulo, elipse y texto
+- **Historial** con undo/redo
+- Menú contextual (duplicate, delete, bring to front, send to back)
+- Panel de código con generación de **CSS** y **React component**
+- Copia al portapapeles y descarga de CSS
+- Paneles inferiores: **Code, Animation, Assets, Components, AI Chat y Preview**
+- Exportación de proyecto a JSON (`nexus-project.json`)
+- Onboarding inicial y notificaciones tipo toast
 
-## 🚀 Tecnologías utilizadas
+## 🧱 Tecnologías
 
-- HTML5 / CSS3 (variables CSS para temas claro/oscuro)
-- JavaScript vanilla (ES6+)
-- Almacenamiento local en el dispositivo
-- Diseño mobile-first (max-width: 480px)
+- HTML5
+- CSS3
+- JavaScript Vanilla (ES6+)
+- Canvas API
 
-## 📱 Uso de la aplicación
-
-### Registro de transacciones
-1. Selecciona el tipo **Ingreso** o **Gasto** desde el panel de acciones rápidas
-2. Completa el formulario con el monto, descripción y categoría
-3. Confirma para registrar la operación
-
-### Copias de seguridad
-- **Exportar backup completo**: Guarda todos los datos en un archivo JSON
-- **Exportar CSV**: Genera un archivo compatible con Excel y Google Sheets
-- **Importar datos**: Restaura desde un archivo JSON previo
-
-### Presupuestos
-- Define presupuestos mensuales por categoría
-- Visualiza el progreso mediante barras de gasto
-- Recibe alertas visuales al superar los límites
-
-### Personalización
-- Cambia entre tema claro/oscuro automático o manual
-- Configura un PIN de seguridad
-- Selecciona la moneda principal de tus finanzas
-
-## 💾 Almacenamiento de datos
-
-Todos los datos se guardan **exclusivamente en el dispositivo del usuario**. No se envían a servidores externos, garantizando la privacidad y control total sobre la información financiera.
-
-Las exportaciones permiten:
-- Transferir datos entre dispositivos
-- Crear copias de seguridad periódicas
-- Analizar datos en herramientas externas
-
-## 📋 Categorías disponibles
-
-La aplicación incluye categorías predefinidas tanto para gastos como para ingresos, organizadas con colores distintivos para facilitar su identificación visual en gráficos y listados.
-
-## 🔒 Seguridad
-
-- **PIN de acceso**: Protege la aplicación con un código numérico
-- **Datos locales**: Sin almacenamiento en la nube ni servidores externos
-- **Backups cifrables**: El usuario controla sus archivos de respaldo
-
-## 🛠️ Instalación y uso local
+## 🚀 Uso local
 
 ```bash
-# Clonar el repositorio
 git clone https://github.com/aurenox-global/inventario.git
-
-# Navegar al directorio
 cd inventario
-
-# Abrir en el navegador (cualquier servidor web estático)
-# Por ejemplo, con Python:
 python -m http.server 8000
 ```
 
-O simplemente accede a la versión desplegada:
-👉 [https://aurenox-global.github.io/inventario/](https://aurenox-global.github.io/inventario/)
+Luego abre: `http://localhost:8000`
 
-## 📱 Compatibilidad
+## 🕹️ Atajos y controles
 
-- ✅ Navegadores modernos (Chrome, Safari, Firefox, Edge)
-- ✅ Dispositivos iOS y Android
-- ✅ Funciona offline después de la primera carga
-- ✅ Diseño táctil optimizado
+- `V`: seleccionar
+- `R`: rectángulo
+- `O`: elipse
+- `T`: texto
+- `Delete`: eliminar capa seleccionada
+- `Esc`: deseleccionar
+- `Ctrl/Cmd + D`: duplicar
+- `Ctrl/Cmd + Z`: undo
+- `Ctrl/Cmd + Shift + Z`: redo
+- Rueda del mouse: zoom
+- Espacio + arrastrar (o clic derecho): pan
 
-## 🔄 Actualizaciones
+## 📦 Exportaciones
 
-**Versión actual: 2.0**
-- Interfaz rediseñada con diseño nativo iOS
-- Nuevos gráficos de tendencia y mapa de calor
-- Sistema mejorado de presupuestos
-- Exportación a CSV
-- Tema oscuro completo
+- **Proyecto completo**: JSON con artboards y capas
+- **Código CSS**: copia al portapapeles o descarga (`styles.css`)
+
+## 📄 Estructura del proyecto
+
+- `/home/runner/work/inventario/inventario/index.html`: aplicación completa (UI + lógica)
+- `/home/runner/work/inventario/inventario/README.md`: documentación del proyecto
 
 ## 📄 Licencia
 
 Este proyecto es de uso interno de Aurenox Global. Todos los derechos reservados.
-
----
-
-Desarrollado con ❤️ por [Aurenox Global](https://github.com/aurenox-global)
