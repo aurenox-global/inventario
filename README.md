@@ -58,8 +58,8 @@ Luego abre: `http://localhost:8000`
 
 ## 📄 Estructura del proyecto
 
-- `/home/runner/work/inventario/inventario/index.html`: aplicación completa (UI + lógica)
-- `/home/runner/work/inventario/inventario/README.md`: documentación del proyecto
+- `index.html`: aplicación completa (UI + lógica)
+- `README.md`: documentación del proyecto
 
 ## 📄 Licencia
 
