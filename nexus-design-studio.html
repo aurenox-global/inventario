@@ -1,0 +1,1457 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus Design Studio v3.0</title>
+    <style>
+        :root {
+            --bg-primary: #0f0f0f;
+            --bg-secondary: #1a1a1a;
+            --bg-tertiary: #252525;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0a0;
+            --accent: #6366f1;
+            --accent-hover: #4f46e5;
+            --border: #333333;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            overflow: hidden;
+            height: 100vh;
+            width: 100vw;
+        }
+
+        #splash-screen {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: var(--bg-primary);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            transition: opacity 0.5s ease;
+        }
+
+        #splash-screen.hidden { opacity: 0; pointer-events: none; }
+
+        .splash-logo {
+            font-size: 4rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        .splash-subtitle { color: var(--text-secondary); margin-top: 1rem; font-size: 1.2rem; }
+
+        .splash-loader {
+            width: 200px; height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            margin-top: 2rem;
+            overflow: hidden;
+        }
+
+        .splash-loader-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #6366f1, #8b5cf6);
+            border-radius: 2px;
+            animation: loading 2s ease-in-out forwards;
+        }
+
+        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } }
+        @keyframes loading { 0% { width: 0%; } 100% { width: 100%; } }
+
+        #app-container { display: grid; grid-template-rows: 50px 1fr 300px; height: 100vh; }
+
+        #top-bar {
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 1rem;
+            gap: 1.5rem;
+        }
+
+        .logo {
+            font-size: 1.3rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .menu-item {
+            padding: 0.5rem 1rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+            font-size: 0.9rem;
+        }
+
+        .menu-item:hover { background: var(--bg-tertiary); }
+
+        .toolbar { display: flex; gap: 0.5rem; margin-left: auto; }
+
+        .tool-btn {
+            width: 36px; height: 36px;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 6px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .tool-btn:hover { background: var(--accent); }
+        .tool-btn.active { background: var(--accent); }
+
+        #main-workspace { display: grid; grid-template-columns: 250px 1fr 300px; overflow: hidden; }
+
+        .panel {
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+        }
+
+        .panel-header {
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+            font-weight: 600;
+            font-size: 0.85rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .panel-content { padding: 0.5rem; }
+
+        .layer-item {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem;
+            border-radius: 4px;
+            cursor: pointer;
+            gap: 0.5rem;
+        }
+
+        .layer-item:hover { background: var(--bg-tertiary); }
+        .layer-item.selected { background: var(--accent); }
+
+        .layer-icon {
+            width: 20px; height: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+        }
+
+        .layer-name { flex: 1; font-size: 0.85rem; }
+
+        .layer-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.2s; }
+        .layer-item:hover .layer-actions { opacity: 1; }
+
+        .layer-action-btn {
+            width: 20px; height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-secondary);
+            cursor: pointer;
+            border-radius: 3px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .layer-action-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
+
+        #canvas-area {
+            background: var(--bg-primary);
+            position: relative;
+            overflow: hidden;
+        }
+
+        #main-canvas {
+            position: absolute;
+            top: 0; left: 0;
+            cursor: crosshair;
+        }
+
+        #inspector-panel { border-right: 1px solid var(--border); border-left: 1px solid var(--border); }
+
+        .inspector-section { border-bottom: 1px solid var(--border); }
+
+        .inspector-section-header {
+            padding: 0.75rem 1rem;
+            font-weight: 600;
+            font-size: 0.8rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .inspector-section-header:hover { background: var(--bg-tertiary); }
+
+        .inspector-section-content { padding: 0.75rem 1rem; }
+
+        .property-row {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .property-label { font-size: 0.75rem; color: var(--text-secondary); width: 60px; }
+
+        .property-input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            padding: 0.4rem 0.5rem;
+            color: var(--text-primary);
+            font-size: 0.85rem;
+        }
+
+        .property-input:focus { outline: none; border-color: var(--accent); }
+
+        .color-picker-wrapper { position: relative; width: 30px; height: 30px; }
+
+        .color-picker {
+            width: 100%; height: 100%;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        #bottom-panel {
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+        }
+
+        .bottom-tabs { display: flex; border-bottom: 1px solid var(--border); }
+
+        .bottom-tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .bottom-tab:hover { background: var(--bg-tertiary); }
+        .bottom-tab.active { border-bottom-color: var(--accent); color: var(--accent); }
+
+        .bottom-panel-content { flex: 1; overflow-y: auto; padding: 1rem; }
+
+        .code-editor {
+            background: var(--bg-primary);
+            border-radius: 6px;
+            padding: 1rem;
+            font-family: 'Monaco', 'Menlo', monospace;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            overflow-x: auto;
+            white-space: pre;
+        }
+
+        .code-keyword { color: #c792ea; }
+        .code-selector { color: #ffcb6b; }
+        .code-property { color: #82aaff; }
+        .code-value { color: #c3e88d; }
+        .code-comment { color: #676e95; }
+        .code-string { color: #c3e88d; }
+
+        #chat-container { display: flex; flex-direction: column; height: 100%; }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chat-message {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 12px;
+            font-size: 0.9rem;
+            line-height: 1.5;
+        }
+
+        .chat-message.user { background: var(--accent); align-self: flex-end; border-bottom-right-radius: 4px; }
+        .chat-message.assistant { background: var(--bg-tertiary); align-self: flex-start; border-bottom-left-radius: 4px; }
+
+        .chat-input-container {
+            display: flex;
+            padding: 1rem;
+            border-top: 1px solid var(--border);
+            gap: 0.5rem;
+        }
+
+        #chat-input {
+            flex: 1;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-size: 0.9rem;
+        }
+
+        #chat-input:focus { outline: none; border-color: var(--accent); }
+
+        #chat-send {
+            width: 44px; height: 44px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #chat-send:hover { background: var(--accent-hover); }
+
+        #timeline-container { display: flex; flex-direction: column; height: 100%; }
+
+        .timeline-controls {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            padding: 0.75rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .timeline-play-btn {
+            width: 36px; height: 36px;
+            border: none;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .timeline-scrubber {
+            flex: 1;
+            height: 4px;
+            background: var(--bg-tertiary);
+            border-radius: 2px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .timeline-scrubber-thumb {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 12px; height: 12px;
+            background: var(--accent);
+            border-radius: 50%;
+            left: 0%;
+        }
+
+        .timeline-layers { flex: 1; overflow-y: auto; }
+
+        .timeline-layer {
+            display: flex;
+            align-items: center;
+            padding: 0.5rem 1rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .timeline-layer-name { width: 150px; font-size: 0.85rem; }
+
+        .timeline-layer-track {
+            flex: 1;
+            height: 30px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            position: relative;
+        }
+
+        .timeline-keyframe {
+            position: absolute;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            width: 10px; height: 10px;
+            background: var(--accent);
+            border-radius: 2px;
+        }
+
+        .assets-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
+            gap: 0.5rem;
+        }
+
+        .asset-item {
+            aspect-ratio: 1;
+            background: var(--bg-tertiary);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .asset-item:hover { background: var(--accent); transform: scale(1.05); }
+
+        #context-menu {
+            position: fixed;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 0.5rem 0;
+            min-width: 180px;
+            z-index: 1000;
+            display: none;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+        }
+
+        #context-menu.active { display: block; }
+
+        .context-menu-item {
+            padding: 0.5rem 1rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .context-menu-item:hover { background: var(--bg-tertiary); }
+        .context-menu-divider { height: 1px; background: var(--border); margin: 0.5rem 0; }
+
+        #onboarding-overlay {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            display: none;
+        }
+
+        #onboarding-overlay.active { display: flex; align-items: center; justify-content: center; }
+
+        .onboarding-step {
+            background: var(--bg-secondary);
+            border-radius: 12px;
+            padding: 2rem;
+            max-width: 400px;
+            text-align: center;
+            border: 2px solid var(--accent);
+        }
+
+        .onboarding-title { font-size: 1.5rem; margin-bottom: 1rem; color: var(--accent); }
+        .onboarding-description { color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.6; }
+        .onboarding-nav { display: flex; justify-content: space-between; gap: 1rem; }
+
+        #zoom-controls {
+            position: absolute;
+            bottom: 1rem; right: 1rem;
+            display: flex;
+            gap: 0.5rem;
+            background: var(--bg-secondary);
+            border-radius: 8px;
+            padding: 0.5rem;
+            border: 1px solid var(--border);
+        }
+
+        .zoom-btn {
+            width: 32px; height: 32px;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover { background: var(--accent); }
+
+        .zoom-level {
+            display: flex;
+            align-items: center;
+            padding: 0 0.75rem;
+            font-size: 0.85rem;
+            min-width: 50px;
+            justify-content: center;
+        }
+
+        .btn {
+            padding: 0.6rem 1.2rem;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            transition: all 0.2s;
+        }
+
+        .btn-primary { background: var(--accent); color: white; }
+        .btn-primary:hover { background: var(--accent-hover); }
+        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
+        .btn-secondary:hover { background: var(--border); }
+
+        ::-webkit-scrollbar { width: 8px; height: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
+
+        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
+    </style>
+</head>
+<body>
+    <div id="splash-screen">
+        <div class="splash-logo">NEXUS</div>
+        <div class="splash-subtitle">Design Studio v3.0</div>
+        <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+    </div>
+
+    <div id="app-container">
+        <div id="top-bar">
+            <div class="logo">NEXUS</div>
+            <div class="menu-item">File</div>
+            <div class="menu-item">Edit</div>
+            <div class="menu-item">View</div>
+            <div class="menu-item">Insert</div>
+            <div class="menu-item">Arrange</div>
+            <div class="menu-item">Export</div>
+            <div class="toolbar">
+                <button class="tool-btn" title="Undo" onclick="app.undo()">↶</button>
+                <button class="tool-btn" title="Redo" onclick="app.redo()">↷</button>
+                <button class="tool-btn" title="Preview" onclick="app.togglePreview()">▶</button>
+                <button class="tool-btn" title="Export" onclick="app.exportProject()">↓</button>
+            </div>
+        </div>
+
+        <div id="main-workspace">
+            <div class="panel" id="layers-panel">
+                <div class="panel-header">
+                    <span>LAYERS</span>
+                    <button class="tool-btn" style="width:28px;height:28px;" onclick="app.addLayer()">+</button>
+                </div>
+                <div class="panel-content" id="layers-list"></div>
+            </div>
+
+            <div id="canvas-area">
+                <canvas id="main-canvas"></canvas>
+                <div id="zoom-controls">
+                    <button class="zoom-btn" onclick="app.zoomOut()">−</button>
+                    <div class="zoom-level" id="zoom-level">100%</div>
+                    <button class="zoom-btn" onclick="app.zoomIn()">+</button>
+                </div>
+            </div>
+
+            <div class="panel" id="inspector-panel">
+                <div class="panel-header">INSPECTOR</div>
+                
+                <div class="inspector-section">
+                    <div class="inspector-section-header"><span>Layout</span><span>▼</span></div>
+                    <div class="inspector-section-content">
+                        <div class="property-row">
+                            <span class="property-label">X</span>
+                            <input type="number" class="property-input" id="prop-x" onchange="app.updateProperty('x', this.value)">
+                            <span class="property-label">Y</span>
+                            <input type="number" class="property-input" id="prop-y" onchange="app.updateProperty('y', this.value)">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">W</span>
+                            <input type="number" class="property-input" id="prop-w" onchange="app.updateProperty('width', this.value)">
+                            <span class="property-label">H</span>
+                            <input type="number" class="property-input" id="prop-h" onchange="app.updateProperty('height', this.value)">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Rotation</span>
+                            <input type="number" class="property-input" id="prop-rotation" onchange="app.updateProperty('rotation', this.value)">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Opacity</span>
+                            <input type="range" class="property-input" id="prop-opacity" min="0" max="100" onchange="app.updateProperty('opacity', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="inspector-section">
+                    <div class="inspector-section-header"><span>Appearance</span><span>▼</span></div>
+                    <div class="inspector-section-content">
+                        <div class="property-row">
+                            <span class="property-label">Fill</span>
+                            <div class="color-picker-wrapper">
+                                <input type="color" class="color-picker" id="prop-fill" onchange="app.updateProperty('fill', this.value)">
+                            </div>
+                            <input type="text" class="property-input" id="prop-fill-text" value="#6366f1" onchange="app.updateProperty('fill', this.value)">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Border</span>
+                            <input type="number" class="property-input" id="prop-border-width" placeholder="Width" onchange="app.updateProperty('borderWidth', this.value)" style="width:60px;">
+                            <div class="color-picker-wrapper">
+                                <input type="color" class="color-picker" id="prop-border-color" value="#333333" onchange="app.updateProperty('borderColor', this.value)">
+                            </div>
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Radius</span>
+                            <input type="number" class="property-input" id="prop-radius" onchange="app.updateProperty('borderRadius', this.value)">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="inspector-section">
+                    <div class="inspector-section-header"><span>Effects</span><span>▼</span></div>
+                    <div class="inspector-section-content">
+                        <div class="property-row">
+                            <span class="property-label">Shadow</span>
+                            <input type="checkbox" id="prop-shadow-enabled" onchange="app.toggleShadow()">
+                            <input type="color" class="color-picker" id="prop-shadow-color" value="#000000" onchange="app.updateShadow()">
+                        </div>
+                        <div class="property-row">
+                            <span class="property-label">Blur</span>
+                            <input type="range" class="property-input" id="prop-shadow-blur" min="0" max="50" value="10" onchange="app.updateShadow()">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="bottom-panel">
+            <div class="bottom-tabs">
+                <div class="bottom-tab active" data-tab="code" onclick="app.switchTab('code')">Code</div>
+                <div class="bottom-tab" data-tab="animation" onclick="app.switchTab('animation')">Animation</div>
+                <div class="bottom-tab" data-tab="assets" onclick="app.switchTab('assets')">Assets</div>
+                <div class="bottom-tab" data-tab="components" onclick="app.switchTab('components')">Components</div>
+                <div class="bottom-tab" data-tab="chat" onclick="app.switchTab('chat')">AI Chat</div>
+                <div class="bottom-tab" data-tab="preview" onclick="app.switchTab('preview')">Preview</div>
+            </div>
+            <div class="bottom-panel-content" id="bottom-panel-content"></div>
+        </div>
+    </div>
+
+    <div id="context-menu">
+        <div class="context-menu-item" onclick="app.duplicateSelected()">📋 Duplicate</div>
+        <div class="context-menu-item" onclick="app.deleteSelected()">🗑️ Delete</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="app.groupSelected()">📦 Group</div>
+        <div class="context-menu-item" onclick="app.ungroupSelected()">✂️ Ungroup</div>
+        <div class="context-menu-divider"></div>
+        <div class="context-menu-item" onclick="app.bringToFront()">⬆️ Bring to Front</div>
+        <div class="context-menu-item" onclick="app.sendToBack()">⬇️ Send to Back</div>
+    </div>
+
+    <div id="onboarding-overlay">
+        <div class="onboarding-step">
+            <h2 class="onboarding-title" id="onboarding-title">Welcome to Nexus!</h2>
+            <p class="onboarding-description" id="onboarding-desc">Let's get you started with a quick tour of the interface.</p>
+            <div class="onboarding-nav">
+                <button class="btn btn-secondary" onclick="app.skipOnboarding()">Skip</button>
+                <button class="btn btn-primary" onclick="app.nextOnboardingStep()" id="onboarding-next">Next</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class NexusApp {
+            constructor() {
+                this.canvas = document.getElementById('main-canvas');
+                this.ctx = this.canvas.getContext('2d');
+                this.layers = [];
+                this.selectedLayer = null;
+                this.zoom = 1;
+                this.panX = 0;
+                this.panY = 0;
+                this.isDragging = false;
+                this.isPanning = false;
+                this.dragStartX = 0;
+                this.dragStartY = 0;
+                this.currentTool = 'select';
+                this.history = [];
+                this.historyIndex = -1;
+                this.activeTab = 'code';
+                this.isPlaying = false;
+                this.currentTime = 0;
+                this.artboards = [];
+                this.currentArtboard = null;
+                this.onboardingStep = 0;
+                this.init();
+            }
+
+            init() {
+                this.setupCanvas();
+                this.setupEventListeners();
+                this.loadTemplates();
+                setTimeout(() => this.showSplash(), 100);
+                setTimeout(() => this.startOnboarding(), 2500);
+            }
+
+            setupCanvas() {
+                const canvasArea = document.getElementById('canvas-area');
+                this.canvas.width = canvasArea.clientWidth;
+                this.canvas.height = canvasArea.clientHeight;
+                this.createArtboard('iPhone 14 Pro', 375, 812, 100, 50);
+                this.render();
+            }
+
+            createArtboard(name, width, height, x, y) {
+                const artboard = { id: `artboard-${Date.now()}`, name, x, y, width, height, layers: [], selected: true };
+                this.artboards.push(artboard);
+                this.currentArtboard = artboard;
+                return artboard;
+            }
+
+            setupEventListeners() {
+                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
+                this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
+                this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
+                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
+                window.addEventListener('resize', () => this.handleResize());
+                document.addEventListener('click', (e) => {
+                    if (!e.target.closest('#context-menu')) {
+                        document.getElementById('context-menu').classList.remove('active');
+                    }
+                });
+            }
+
+            handleMouseDown(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left - this.panX) / this.zoom;
+                const y = (e.clientY - rect.top - this.panY) / this.zoom;
+
+                if (e.button === 2 || e.code === 'Space') {
+                    this.isPanning = true;
+                    this.dragStartX = e.clientX;
+                    this.dragStartY = e.clientY;
+                    this.canvas.style.cursor = 'grabbing';
+                } else if (e.button === 0) {
+                    const clickedLayer = this.findLayerAt(x, y);
+                    if (clickedLayer) {
+                        this.selectLayer(clickedLayer);
+                        this.isDragging = true;
+                        this.dragStartX = x;
+                        this.dragStartY = y;
+                    } else {
+                        this.deselectAll();
+                        if (this.currentTool !== 'select') {
+                            this.createShape(x, y);
+                        }
+                    }
+                }
+            }
+
+            handleMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = (e.clientX - rect.left - this.panX) / this.zoom;
+                const y = (e.clientY - rect.top - this.panY) / this.zoom;
+
+                if (this.isPanning) {
+                    const dx = e.clientX - this.dragStartX;
+                    const dy = e.clientY - this.dragStartY;
+                    this.panX += dx;
+                    this.panY += dy;
+                    this.dragStartX = e.clientX;
+                    this.dragStartY = e.clientY;
+                    this.render();
+                } else if (this.isDragging && this.selectedLayer) {
+                    const dx = x - this.dragStartX;
+                    const dy = y - this.dragStartY;
+                    this.selectedLayer.x += dx;
+                    this.selectedLayer.y += dy;
+                    this.dragStartX = x;
+                    this.dragStartY = y;
+                    this.updateInspector();
+                    this.render();
+                    this.updateCodePanel();
+                }
+            }
+
+            handleMouseUp(e) {
+                this.isDragging = false;
+                this.isPanning = false;
+                this.canvas.style.cursor = this.currentTool === 'select' ? 'default' : 'crosshair';
+            }
+
+            handleWheel(e) {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                this.zoom = Math.max(0.25, Math.min(4, this.zoom * delta));
+                document.getElementById('zoom-level').textContent = `${Math.round(this.zoom * 100)}%`;
+                this.render();
+            }
+
+            handleContextMenu(e) {
+                e.preventDefault();
+                const menu = document.getElementById('context-menu');
+                menu.style.left = `${e.clientX}px`;
+                menu.style.top = `${e.clientY}px`;
+                menu.classList.add('active');
+            }
+
+            handleKeyboard(e) {
+                const shortcuts = {
+                    'v': () => this.setTool('select'),
+                    'r': () => this.setTool('rectangle'),
+                    'o': () => this.setTool('ellipse'),
+                    't': () => this.setTool('text'),
+                    'Delete': () => this.deleteSelected(),
+                    'Escape': () => this.deselectAll(),
+                };
+                if (shortcuts[e.key.toLowerCase()]) shortcuts[e.key.toLowerCase()]();
+                if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); this.duplicateSelected(); }
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); }
+                if (e.code === 'Space') { e.preventDefault(); this.canvas.style.cursor = 'grab'; }
+            }
+
+            handleResize() {
+                const canvasArea = document.getElementById('canvas-area');
+                this.canvas.width = canvasArea.clientWidth;
+                this.canvas.height = canvasArea.clientHeight;
+                this.render();
+            }
+
+            setTool(tool) { this.currentTool = tool; this.canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair'; }
+
+            createShape(x, y) {
+                const layer = {
+                    id: `layer-${Date.now()}`,
+                    type: this.currentTool,
+                    x, y,
+                    width: this.currentTool === 'text' ? 100 : 100,
+                    height: this.currentTool === 'text' ? 30 : 100,
+                    fill: '#6366f1',
+                    stroke: 'transparent',
+                    strokeWidth: 0,
+                    rotation: 0,
+                    opacity: 100,
+                    borderRadius: this.currentTool === 'rectangle' ? 0 : 50,
+                    text: this.currentTool === 'text' ? 'Text' : '',
+                    fontSize: 16,
+                    fontWeight: 'normal',
+                    visible: true,
+                    locked: false,
+                    shadow: { enabled: false, color: '#000000', blur: 10, offsetX: 0, offsetY: 4 }
+                };
+                this.layers.push(layer);
+                if (this.currentArtboard) this.currentArtboard.layers.push(layer);
+                this.selectLayer(layer);
+                this.setTool('select');
+                this.renderLayersList();
+                this.updateInspector();
+                this.updateCodePanel();
+                this.saveHistory();
+            }
+
+            findLayerAt(x, y) {
+                for (let i = this.layers.length - 1; i >= 0; i--) {
+                    const layer = this.layers[i];
+                    if (!layer.visible) continue;
+                    if (x >= layer.x && x <= layer.x + layer.width && y >= layer.y && y <= layer.y + layer.height) {
+                        return layer;
+                    }
+                }
+                return null;
+            }
+
+            selectLayer(layer) {
+                this.deselectAll();
+                this.selectedLayer = layer;
+                this.updateInspector();
+                this.render();
+                this.renderLayersList();
+                this.updateCodePanel();
+            }
+
+            deselectAll() {
+                this.selectedLayer = null;
+                this.render();
+                this.renderLayersList();
+            }
+
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.ctx.save();
+                this.ctx.translate(this.panX, this.panY);
+                this.ctx.scale(this.zoom, this.zoom);
+
+                this.artboards.forEach(artboard => {
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.fillRect(artboard.x, artboard.y, artboard.width, artboard.height);
+                    if (artboard.selected) {
+                        this.ctx.strokeStyle = '#6366f1';
+                        this.ctx.lineWidth = 2;
+                        this.ctx.strokeRect(artboard.x, artboard.y, artboard.width, artboard.height);
+                    }
+                    this.ctx.fillStyle = '#252525';
+                    this.ctx.font = '12px -apple-system, sans-serif';
+                    this.ctx.fillText(`${artboard.name} (${artboard.width}×${artboard.height})`, artboard.x, artboard.y - 10);
+                    
+                    artboard.layers.forEach(layer => this.drawLayer(layer));
+                });
+
+                if (this.selectedLayer) this.drawSelectionHandles(this.selectedLayer);
+                this.ctx.restore();
+            }
+
+            drawLayer(layer) {
+                if (!layer.visible) return;
+                this.ctx.save();
+                this.ctx.globalAlpha = layer.opacity / 100;
+                this.ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
+                this.ctx.rotate((layer.rotation * Math.PI) / 180);
+                this.ctx.translate(-(layer.x + layer.width / 2), -(layer.y + layer.height / 2));
+
+                if (layer.shadow && layer.shadow.enabled) {
+                    this.ctx.shadowColor = layer.shadow.color;
+                    this.ctx.shadowBlur = layer.shadow.blur;
+                    this.ctx.shadowOffsetX = layer.shadow.offsetX;
+                    this.ctx.shadowOffsetY = layer.shadow.offsetY;
+                }
+
+                switch (layer.type) {
+                    case 'rectangle':
+                        this.ctx.fillStyle = layer.fill;
+                        this.ctx.beginPath();
+                        this.ctx.roundRect(layer.x, layer.y, layer.width, layer.height, layer.borderRadius);
+                        this.ctx.fill();
+                        if (layer.strokeWidth > 0) {
+                            this.ctx.strokeStyle = layer.stroke;
+                            this.ctx.lineWidth = layer.strokeWidth;
+                            this.ctx.stroke();
+                        }
+                        break;
+                    case 'ellipse':
+                        this.ctx.fillStyle = layer.fill;
+                        this.ctx.beginPath();
+                        this.ctx.ellipse(layer.x + layer.width/2, layer.y + layer.height/2, layer.width/2, layer.height/2, 0, 0, Math.PI * 2);
+                        this.ctx.fill();
+                        break;
+                    case 'text':
+                        this.ctx.fillStyle = layer.fill;
+                        this.ctx.font = `${layer.fontWeight} ${layer.fontSize}px -apple-system, sans-serif`;
+                        this.ctx.textBaseline = 'top';
+                        this.ctx.fillText(layer.text, layer.x, layer.y);
+                        break;
+                }
+                this.ctx.restore();
+            }
+
+            drawSelectionHandles(layer) {
+                this.ctx.strokeStyle = '#6366f1';
+                this.ctx.lineWidth = 2 / this.zoom;
+                this.ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
+                const handleSize = 8 / this.zoom;
+                const handles = [[layer.x, layer.y], [layer.x + layer.width, layer.y], [layer.x, layer.y + layer.height], [layer.x + layer.width, layer.y + layer.height]];
+                this.ctx.fillStyle = 'white';
+                handles.forEach(([hx, hy]) => {
+                    this.ctx.fillRect(hx - handleSize/2, hy - handleSize/2, handleSize, handleSize);
+                    this.ctx.strokeRect(hx - handleSize/2, hy - handleSize/2, handleSize, handleSize);
+                });
+            }
+
+            renderLayersList() {
+                const container = document.getElementById('layers-list');
+                container.innerHTML = '';
+                [...this.layers].reverse().forEach(layer => {
+                    const div = document.createElement('div');
+                    div.className = `layer-item ${layer === this.selectedLayer ? 'selected' : ''}`;
+                    div.onclick = () => this.selectLayer(layer);
+                    const icons = { rectangle: '▢', ellipse: '○', text: 'T', pen: '✎', image: '🖼' };
+                    div.innerHTML = `
+                        <div class="layer-icon">${icons[layer.type] || '◻'}</div>
+                        <span class="layer-name">${layer.text || layer.type}</span>
+                        <div class="layer-actions">
+                            <button class="layer-action-btn" onclick="event.stopPropagation(); app.toggleVisibility('${layer.id}')">${layer.visible ? '👁' : '🚫'}</button>
+                            <button class="layer-action-btn" onclick="event.stopPropagation(); app.toggleLock('${layer.id}')">${layer.locked ? '🔒' : '🔓'}</button>
+                        </div>
+                    `;
+                    container.appendChild(div);
+                });
+            }
+
+            updateInspector() {
+                if (!this.selectedLayer) return;
+                const layer = this.selectedLayer;
+                document.getElementById('prop-x').value = Math.round(layer.x);
+                document.getElementById('prop-y').value = Math.round(layer.y);
+                document.getElementById('prop-w').value = Math.round(layer.width);
+                document.getElementById('prop-h').value = Math.round(layer.height);
+                document.getElementById('prop-rotation').value = layer.rotation;
+                document.getElementById('prop-opacity').value = layer.opacity;
+                document.getElementById('prop-fill-text').value = layer.fill;
+                document.getElementById('prop-fill').value = layer.fill.startsWith('#') ? layer.fill : '#6366f1';
+                document.getElementById('prop-radius').value = layer.borderRadius || 0;
+                document.getElementById('prop-border-width').value = layer.strokeWidth || 0;
+                document.getElementById('prop-shadow-enabled').checked = layer.shadow?.enabled || false;
+                document.getElementById('prop-shadow-blur').value = layer.shadow?.blur || 10;
+            }
+
+            updateProperty(prop, value) {
+                if (!this.selectedLayer) return;
+                switch (prop) {
+                    case 'x': case 'y': case 'width': case 'height': case 'rotation':
+                        this.selectedLayer[prop] = parseFloat(value) || 0; break;
+                    case 'opacity': this.selectedLayer[prop] = parseInt(value); break;
+                    case 'fill': this.selectedLayer[prop] = value; document.getElementById('prop-fill-text').value = value; break;
+                    case 'borderRadius': this.selectedLayer[prop] = parseInt(value) || 0; break;
+                    case 'borderWidth': this.selectedLayer.strokeWidth = parseInt(value) || 0; break;
+                    case 'borderColor': this.selectedLayer.stroke = value; break;
+                }
+                this.render();
+                this.renderLayersList();
+                this.updateCodePanel();
+                this.saveHistory();
+            }
+
+            toggleShadow() {
+                if (!this.selectedLayer) return;
+                if (!this.selectedLayer.shadow) this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 10, offsetX: 0, offsetY: 4 };
+                this.selectedLayer.shadow.enabled = !this.selectedLayer.shadow.enabled;
+                this.render();
+                this.updateCodePanel();
+            }
+
+            updateShadow() {
+                if (!this.selectedLayer || !this.selectedLayer.shadow) return;
+                this.selectedLayer.shadow.blur = parseInt(document.getElementById('prop-shadow-blur').value);
+                this.selectedLayer.shadow.color = document.getElementById('prop-shadow-color').value;
+                this.render();
+                this.updateCodePanel();
+            }
+
+            toggleVisibility(layerId) {
+                const layer = this.layers.find(l => l.id === layerId);
+                if (layer) { layer.visible = !layer.visible; this.render(); this.renderLayersList(); }
+            }
+
+            toggleLock(layerId) {
+                const layer = this.layers.find(l => l.id === layerId);
+                if (layer) { layer.locked = !layer.locked; this.renderLayersList(); }
+            }
+
+            generateCSS() {
+                if (!this.selectedLayer) return '// Select a layer to see CSS code';
+                const layer = this.selectedLayer;
+                let css = `.element {\n  position: absolute;\n  left: ${layer.x}px;\n  top: ${layer.y}px;\n  width: ${layer.width}px;\n  height: ${layer.height}px;\n`;
+                if (layer.type === 'rectangle') { css += `  background-color: ${layer.fill};\n`; if (layer.borderRadius) css += `  border-radius: ${layer.borderRadius}px;\n`; }
+                else if (layer.type === 'ellipse') { css += `  background-color: ${layer.fill};\n  border-radius: 50%;\n`; }
+                else if (layer.type === 'text') { css += `  color: ${layer.fill};\n  font-size: ${layer.fontSize}px;\n  font-weight: ${layer.fontWeight};\n`; }
+                if (layer.strokeWidth > 0) css += `  border: ${layer.strokeWidth}px solid ${layer.stroke};\n`;
+                css += `  transform: rotate(${layer.rotation}deg);\n  opacity: ${layer.opacity / 100};\n`;
+                if (layer.shadow?.enabled) css += `  box-shadow: ${layer.shadow.offsetX}px ${layer.shadow.offsetY}px ${layer.shadow.blur}px ${layer.shadow.color};\n`;
+                css += `}`;
+                return css;
+            }
+
+            generateReact() {
+                if (!this.selectedLayer) return '// Select a layer to see React code';
+                const layer = this.selectedLayer;
+                const componentName = layer.type.charAt(0).toUpperCase() + layer.type.slice(1);
+                let jsx = `import React from 'react';\n\nconst ${componentName} = () => {\n  return (\n    <div\n      style={{\n        position: 'absolute',\n        left: ${layer.x},\n        top: ${layer.y},\n        width: ${layer.width},\n        height: ${layer.height},\n        backgroundColor: '${layer.fill}',\n`;
+                if (layer.borderRadius) jsx += `        borderRadius: ${layer.borderRadius},\n`;
+                jsx += `        transform: \`rotate(\${${layer.rotation}}deg)\`,\n        opacity: ${layer.opacity / 100}\n      }}\n    >\n`;
+                if (layer.type === 'text') jsx += `      ${layer.text}\n`;
+                jsx += `    </div>\n  );\n};\n\nexport default ${componentName};`;
+                return jsx;
+            }
+
+            updateCodePanel() {
+                const content = document.getElementById('bottom-panel-content');
+                if (this.activeTab !== 'code') return;
+                const css = this.highlightSyntax(this.generateCSS());
+                const react = this.highlightSyntax(this.generateReact());
+                content.innerHTML = `
+                    <div style="display:flex;gap:1rem;margin-bottom:1rem;">
+                        <button class="btn btn-primary" onclick="app.copyCode('css')">Copy CSS</button>
+                        <button class="btn btn-primary" onclick="app.copyCode('react')">Copy React</button>
+                        <button class="btn btn-secondary" onclick="app.downloadCode()">Download</button>
+                    </div>
+                    <h4 style="margin-bottom:0.5rem;color:var(--text-secondary);">CSS</h4>
+                    <div class="code-editor">${css}</div>
+                    <h4 style="margin:1rem 0 0.5rem;color:var(--text-secondary);">React Component</h4>
+                    <div class="code-editor">${react}</div>
+                `;
+            }
+
+            highlightSyntax(code) {
+                return code.replace(/([.#][\w-]+)(\s*{)/g, '<span class="code-selector">$1</span>$2')
+                    .replace(/([\w-]+)(\s*:)/g, '<span class="code-property">$1</span>$2')
+                    .replace(/:\s*([^;]+);/g, ': <span class="code-value">$1</span>;')
+                    .replace(/(\/\/.*)/g, '<span class="code-comment">$1</span>')
+                    .replace(/(['"`])(.*?)\1/g, '<span class="code-string">$1$2$1</span>')
+                    .replace(/\b(import|export|from|const|return|default)\b/g, '<span class="code-keyword">$1</span>');
+            }
+
+            copyCode(type) {
+                const code = type === 'css' ? this.generateCSS() : this.generateReact();
+                navigator.clipboard.writeText(code).then(() => this.showToast(`Copied ${type.toUpperCase()} to clipboard!`));
+            }
+
+            downloadCode() {
+                const code = this.generateCSS();
+                const blob = new Blob([code], { type: 'text/css' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'styles.css'; a.click();
+                URL.revokeObjectURL(url);
+            }
+
+            renderAnimationPanel() {
+                const content = document.getElementById('bottom-panel-content');
+                content.innerHTML = `
+                    <div id="timeline-container">
+                        <div class="timeline-controls">
+                            <button class="timeline-play-btn" onclick="app.togglePlay()">▶</button>
+                            <div class="timeline-scrubber" onclick="app.seekTimeline(event)">
+                                <div class="timeline-scrubber-thumb" style="left: ${this.currentTime}%"></div>
+                            </div>
+                            <span style="font-size:0.85rem;color:var(--text-secondary);">${Math.round(this.currentTime)}%</span>
+                        </div>
+                        <div class="timeline-layers">
+                            ${this.layers.map(layer => `<div class="timeline-layer"><div class="timeline-layer-name">${layer.text || layer.type}</div><div class="timeline-layer-track"><div class="timeline-keyframe" style="left: 0%"></div><div class="timeline-keyframe" style="left: 50%"></div><div class="timeline-keyframe" style="left: 100%"></div></div></div>`).join('')}
+                        </div>
+                    </div>
+                    <div style="margin-top:1rem;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
+                        <h4 style="margin-bottom:0.5rem;">Animation Presets</h4>
+                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button class="btn btn-secondary" onclick="app.applyAnimation('fadeIn')">Fade In</button>
+                            <button class="btn btn-secondary" onclick="app.applyAnimation('slideUp')">Slide Up</button>
+                            <button class="btn btn-secondary" onclick="app.applyAnimation('scaleIn')">Scale In</button>
+                            <button class="btn btn-secondary" onclick="app.applyAnimation('bounce')">Bounce</button>
+                            <button class="btn btn-secondary" onclick="app.applyAnimation('pulse')">Pulse</button>
+                        </div>
+                    </div>
+                `;
+            }
+
+            applyAnimation(preset) {
+                if (!this.selectedLayer) { this.showToast('Please select a layer first'); return; }
+                const animations = { fadeIn: { opacity: [0, 100], duration: 500 }, slideUp: { y: [50, 0], opacity: [0, 100], duration: 400 }, scaleIn: { scale: [0, 1], opacity: [0, 100], duration: 300 }, bounce: { y: [0, -20, 0, -10, 0], duration: 600 }, pulse: { scale: [1, 1.05, 1], duration: 400 } };
+                this.showToast(`Applied ${preset} animation`);
+                this.selectedLayer.animation = { preset, ...animations[preset] };
+                this.updateCodePanel();
+            }
+
+            togglePlay() { this.isPlaying = !this.isPlaying; if (this.isPlaying) this.animate(); }
+
+            animate() {
+                if (!this.isPlaying) return;
+                this.currentTime = (this.currentTime + 1) % 100;
+                this.renderAnimationPanel();
+                requestAnimationFrame(() => this.animate());
+            }
+
+            seekTimeline(e) {
+                const rect = e.target.getBoundingClientRect();
+                const percent = ((e.clientX - rect.left) / rect.width) * 100;
+                this.currentTime = Math.max(0, Math.min(100, percent));
+                this.renderAnimationPanel();
+            }
+
+            renderAssetsPanel() {
+                const content = document.getElementById('bottom-panel-content');
+                const icons = ['home', 'user', 'settings', 'heart', 'star', 'search', 'menu', 'close', 'check', 'arrow', 'plus', 'minus', 'edit', 'delete'];
+                const emojis = { home: '🏠', user: '👤', settings: '⚙️', heart: '❤️', star: '⭐', search: '🔍', menu: '☰', close: '✕', check: '✓', arrow: '➜', plus: '+', minus: '−', edit: '✏️', delete: '🗑️' };
+                content.innerHTML = `
+                    <div style="margin-bottom:1rem;"><input type="text" placeholder="Search icons..." style="width:100%;padding:0.75rem;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);"></div>
+                    <div class="assets-grid">${icons.map(icon => `<div class="asset-item" onclick="app.addIcon('${icon}')" title="${icon}"><span style="font-size:1.5rem;">${emojis[icon]}</span></div>`).join('')}</div>
+                `;
+            }
+
+            addIcon(name) {
+                this.createShape(100, 100);
+                if (this.selectedLayer) {
+                    const emojis = { home: '🏠', user: '👤', settings: '⚙️', heart: '❤️', star: '⭐', search: '🔍', menu: '☰', close: '✕', check: '✓', arrow: '➜', plus: '+', minus: '−', edit: '✏️', delete: '🗑️' };
+                    this.selectedLayer.text = emojis[name];
+                    this.selectedLayer.type = 'text';
+                    this.render();
+                    this.renderLayersList();
+                }
+            }
+
+            renderComponentsPanel() {
+                const content = document.getElementById('bottom-panel-content');
+                const components = [{ name: 'Button', emoji: '🔘' }, { name: 'Card', emoji: '📇' }, { name: 'Input', emoji: '📝' }, { name: 'Toggle', emoji: '🔀' }, { name: 'Badge', emoji: '🏷️' }, { name: 'Avatar', emoji: '👤' }, { name: 'Modal', emoji: '🪟' }, { name: 'Toast', emoji: '📬' }];
+                content.innerHTML = `<div class="assets-grid">${components.map(comp => `<div class="asset-item" onclick="app.addComponent('${comp.name}')" style="flex-direction:column;gap:0.5rem;"><span style="font-size:1.5rem;">${comp.emoji}</span><span style="font-size:0.75rem;color:var(--text-secondary);">${comp.name}</span></div>`).join('')}</div>`;
+            }
+
+            addComponent(name) {
+                if (name === 'Button') {
+                    this.createShape(150, 150);
+                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 8; this.selectedLayer.text = 'Click me'; this.selectedLayer.width = 120; this.selectedLayer.height = 40; }
+                } else if (name === 'Card') {
+                    this.createShape(100, 100);
+                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 12; this.selectedLayer.width = 200; this.selectedLayer.height = 150; this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 20, offsetX: 0, offsetY: 4 }; }
+                }
+                this.showToast(`Added ${name} component`);
+            }
+
+            renderChatPanel() {
+                const content = document.getElementById('bottom-panel-content');
+                content.innerHTML = `
+                    <div id="chat-container">
+                        <div id="chat-messages">
+                            <div class="chat-message assistant">👋 Hi! I'm your AI design assistant. Try commands like:<br><br>• "Create a red button"<br>• "Add a card with shadow"<br>• "Make it bigger"<br>• "Change color to blue"</div>
+                        </div>
+                        <div class="chat-input-container">
+                            <input type="text" id="chat-input" placeholder="Type a command...">
+                            <button id="chat-send" onclick="app.handleChatSubmit()">➤</button>
+                        </div>
+                    </div>
+                `;
+                document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') this.handleChatSubmit(); });
+            }
+
+            handleChatSubmit() {
+                const input = document.getElementById('chat-input');
+                const message = input.value.trim();
+                if (!message) return;
+                this.addChatMessage(message, 'user');
+                input.value = '';
+                setTimeout(() => this.processCommand(message), 500);
+            }
+
+            addChatMessage(text, type) {
+                const container = document.getElementById('chat-messages');
+                const div = document.createElement('div');
+                div.className = `chat-message ${type}`;
+                div.innerHTML = text;
+                container.appendChild(div);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            processCommand(command) {
+                const cmd = command.toLowerCase();
+                let response = '';
+                if (cmd.includes('create') && cmd.includes('button')) {
+                    this.createShape(150, 150);
+                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 8; this.selectedLayer.text = 'Button'; this.selectedLayer.width = 120; this.selectedLayer.height = 40; this.selectedLayer.fill = '#6366f1'; }
+                    response = '✅ Created a button! You can customize it using the inspector panel.';
+                    this.render(); this.renderLayersList();
+                } else if (cmd.includes('create') && cmd.includes('card')) {
+                    this.createShape(100, 100);
+                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 12; this.selectedLayer.width = 200; this.selectedLayer.height = 150; this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 20, offsetX: 0, offsetY: 4 }; }
+                    response = '✅ Created a card with shadow effect!';
+                    this.render(); this.renderLayersList();
+                } else if (cmd.includes('red')) {
+                    if (this.selectedLayer) { this.selectedLayer.fill = '#ef4444'; this.render(); response = '🎨 Changed color to red!'; }
+                    else response = 'Please select a layer first.';
+                } else if (cmd.includes('blue')) {
+                    if (this.selectedLayer) { this.selectedLayer.fill = '#3b82f6'; this.render(); response = '🎨 Changed color to blue!'; }
+                    else response = 'Please select a layer first.';
+                } else if (cmd.includes('bigger') || cmd.includes('larger')) {
+                    if (this.selectedLayer) { this.selectedLayer.width *= 1.2; this.selectedLayer.height *= 1.2; this.render(); response = '📏 Made it bigger!'; }
+                    else response = 'Please select a layer first.';
+                } else if (cmd.includes('smaller')) {
+                    if (this.selectedLayer) { this.selectedLayer.width *= 0.8; this.selectedLayer.height *= 0.8; this.render(); response = '📏 Made it smaller!'; }
+                    else response = 'Please select a layer first.';
+                } else if (cmd.includes('shadow')) {
+                    if (this.selectedLayer) { this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 20, offsetX: 0, offsetY: 4 }; this.render(); response = '✨ Added shadow effect!'; }
+                    else response = 'Please select a layer first.';
+                } else if (cmd.includes('circle') || cmd.includes('ellipse')) {
+                    this.setTool('ellipse'); this.createShape(150, 150);
+                    response = '⭕ Created an ellipse!';
+                    this.render(); this.renderLayersList();
+                } else if (cmd.includes('help')) {
+                    response = '📚 Available commands:<br><br>• "Create button/card/circle"<br>• "Change color to red/blue/green"<br>• "Make it bigger/smaller"<br>• "Add shadow"<br>• "Export CSS/React"';
+                } else {
+                    response = `I understood: "${command}". Try more specific commands like "create a red button" or "add shadow". Type "help" for all commands.`;
+                }
+                this.addChatMessage(response, 'assistant');
+                this.updateCodePanel();
+            }
+
+            renderPreviewPanel() {
+                const content = document.getElementById('bottom-panel-content');
+                const previewHTML = this.layers.map(layer => {
+                    let styles = `position:absolute;left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;background:${layer.fill};`;
+                    if (layer.borderRadius) styles += `border-radius:${layer.borderRadius}px;`;
+                    if (layer.rotation) styles += `transform:rotate(${layer.rotation}deg);`;
+                    if (layer.opacity < 100) styles += `opacity:${layer.opacity/100};`;
+                    return `<div style="${styles}"></div>`;
+                }).join('');
+                content.innerHTML = `
+                    <div style="display:flex;gap:1rem;justify-content:center;padding:2rem;">
+                        <div style="text-align:center;"><div style="width:180px;height:360px;border:8px solid #333;border-radius:20px;background:white;margin:0 auto;overflow:hidden;position:relative;"><div style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scale(0.5);transform-origin:top center;">${previewHTML}</div></div><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-secondary);">Mobile</p></div>
+                        <div style="text-align:center;"><div style="width:320px;height:240px;border:8px solid #333;border-radius:8px;background:white;margin:0 auto;overflow:hidden;position:relative;"><div style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scale(0.5);transform-origin:top center;">${previewHTML}</div></div><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-secondary);">Tablet</p></div>
+                        <div style="text-align:center;"><div style="width:400px;height:280px;border:8px solid #333;border-radius:8px;background:white;margin:0 auto;overflow:hidden;position:relative;"><div style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scale(0.7);transform-origin:top center;">${previewHTML}</div></div><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-secondary);">Desktop</p></div>
+                    </div>
+                `;
+            }
+
+            switchTab(tab) {
+                this.activeTab = tab;
+                document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
+                document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
+                switch (tab) {
+                    case 'code': this.updateCodePanel(); break;
+                    case 'animation': this.renderAnimationPanel(); break;
+                    case 'assets': this.renderAssetsPanel(); break;
+                    case 'components': this.renderComponentsPanel(); break;
+                    case 'chat': this.renderChatPanel(); break;
+                    case 'preview': this.renderPreviewPanel(); break;
+                }
+            }
+
+            saveHistory() {
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                this.history.push(JSON.stringify(this.layers));
+                this.historyIndex++;
+            }
+
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.layers = JSON.parse(this.history[this.historyIndex]);
+                    this.render(); this.renderLayersList();
+                    this.showToast('Undo');
+                }
+            }
+
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.layers = JSON.parse(this.history[this.historyIndex]);
+                    this.render(); this.renderLayersList();
+                    this.showToast('Redo');
+                }
+            }
+
+            duplicateSelected() {
+                if (!this.selectedLayer) return;
+                const newLayer = JSON.parse(JSON.stringify(this.selectedLayer));
+                newLayer.id = `layer-${Date.now()}`;
+                newLayer.x += 20; newLayer.y += 20;
+                this.layers.push(newLayer);
+                this.selectLayer(newLayer);
+                this.renderLayersList();
+                this.saveHistory();
+                document.getElementById('context-menu').classList.remove('active');
+            }
+
+            deleteSelected() {
+                if (!this.selectedLayer) return;
+                this.layers = this.layers.filter(l => l !== this.selectedLayer);
+                this.deselectAll();
+                this.renderLayersList();
+                this.saveHistory();
+                document.getElementById('context-menu').classList.remove('active');
+            }
+
+            groupSelected() { this.showToast('Group functionality coming soon'); document.getElementById('context-menu').classList.remove('active'); }
+            ungroupSelected() { this.showToast('Ungroup functionality coming soon'); document.getElementById('context-menu').classList.remove('active'); }
+
+            bringToFront() {
+                if (!this.selectedLayer) return;
+                this.layers = this.layers.filter(l => l !== this.selectedLayer);
+                this.layers.push(this.selectedLayer);
+                this.render(); this.renderLayersList();
+                document.getElementById('context-menu').classList.remove('active');
+            }
+
+            sendToBack() {
+                if (!this.selectedLayer) return;
+                this.layers = this.layers.filter(l => l !== this.selectedLayer);
+                this.layers.unshift(this.selectedLayer);
+                this.render(); this.renderLayersList();
+                document.getElementById('context-menu').classList.remove('active');
+            }
+
+            zoomIn() { this.zoom = Math.min(4, this.zoom * 1.2); document.getElementById('zoom-level').textContent = `${Math.round(this.zoom * 100)}%`; this.render(); }
+            zoomOut() { this.zoom = Math.max(0.25, this.zoom / 1.2); document.getElementById('zoom-level').textContent = `${Math.round(this.zoom * 100)}%`; this.render(); }
+
+            loadTemplates() {
+                const templates = [
+                    { type: 'rectangle', x: 50, y: 50, width: 200, height: 100, fill: '#6366f1', borderRadius: 12 },
+                    { type: 'ellipse', x: 300, y: 100, width: 80, height: 80, fill: '#8b5cf6' },
+                    { type: 'text', x: 50, y: 200, width: 200, height: 40, fill: '#ffffff', text: 'Hello Nexus!', fontSize: 24, fontWeight: 'bold' }
+                ];
+                templates.forEach(template => {
+                    const layer = { id: `layer-${Date.now()}-${Math.random()}`, ...template, rotation: 0, opacity: 100, stroke: 'transparent', strokeWidth: 0, visible: true, locked: false, shadow: { enabled: false, color: '#000000', blur: 10, offsetX: 0, offsetY: 4 } };
+                    this.layers.push(layer);
+                    if (this.currentArtboard) this.currentArtboard.layers.push(layer);
+                });
+                this.renderLayersList();
+            }
+
+            showSplash() { document.getElementById('splash-screen').classList.add('hidden'); }
+
+            startOnboarding() {
+                const hasSeenOnboarding = localStorage.getItem('nexus-onboarding');
+                if (!hasSeenOnboarding) {
+                    document.getElementById('onboarding-overlay').classList.add('active');
+                    this.onboardingStep = 0;
+                }
+            }
+
+            nextOnboardingStep() {
+                const steps = [
+                    { title: 'Welcome to Nexus!', desc: 'A professional design tool built entirely in a single HTML file.' },
+                    { title: 'Layers Panel', desc: 'Manage all your design elements here. Toggle visibility, lock layers, and organize your work.' },
+                    { title: 'Canvas', desc: 'Your creative workspace. Use tools to create shapes, text, and more. Space+drag to pan, scroll to zoom.' },
+                    { title: 'Inspector', desc: 'Fine-tune properties of selected elements including position, size, colors, and effects.' },
+                    { title: 'Bottom Panels', desc: 'Access code export, animations, assets, components, and AI chat assistance.' },
+                    { title: 'Ready to Design!', desc: 'Start creating amazing designs. Try the AI chat or explore the tools!' }
+                ];
+                this.onboardingStep++;
+                if (this.onboardingStep >= steps.length) { this.skipOnboarding(); return; }
+                document.getElementById('onboarding-title').textContent = steps[this.onboardingStep].title;
+                document.getElementById('onboarding-desc').innerHTML = steps[this.onboardingStep].desc;
+                if (this.onboardingStep === steps.length - 1) document.getElementById('onboarding-next').textContent = 'Get Started';
+            }
+
+            skipOnboarding() { document.getElementById('onboarding-overlay').classList.remove('active'); localStorage.setItem('nexus-onboarding', 'true'); }
+
+            showToast(message) {
+                const toast = document.createElement('div');
+                toast.style.cssText = `position: fixed; bottom: 20px; right: 20px; background: var(--accent); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; z-index: 10000; animation: slideIn 0.3s ease;`;
+                toast.textContent = message;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease'; setTimeout(() => toast.remove(), 300); }, 2000);
+            }
+
+            exportProject() {
+                const projectData = { version: '3.0', artboards: this.artboards, layers: this.layers, exported: new Date().toISOString() };
+                const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url; a.download = 'nexus-project.json'; a.click();
+                URL.revokeObjectURL(url);
+                this.showToast('Project exported!');
+            }
+
+            togglePreview() { this.switchTab('preview'); }
+            addLayer() { this.createShape(100, 100); }
+        }
+
+        const app = new NexusApp();
+    </script>
+</body>
+</html>
