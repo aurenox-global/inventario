@@ -1,1457 +1,1674 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus Design Studio v3.0</title>
-    <style>
-        :root {
-            --bg-primary: #0f0f0f;
-            --bg-secondary: #1a1a1a;
-            --bg-tertiary: #252525;
-            --text-primary: #ffffff;
-            --text-secondary: #a0a0a0;
-            --accent: #6366f1;
-            --accent-hover: #4f46e5;
-            --border: #333333;
-            --success: #10b981;
-            --warning: #f59e0b;
-            --danger: #ef4444;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: var(--bg-primary);
-            color: var(--text-primary);
-            overflow: hidden;
-            height: 100vh;
-            width: 100vw;
-        }
-
-        #splash-screen {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: var(--bg-primary);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            z-index: 10000;
-            transition: opacity 0.5s ease;
-        }
-
-        #splash-screen.hidden { opacity: 0; pointer-events: none; }
-
-        .splash-logo {
-            font-size: 4rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6, #d946ef);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            animation: pulse 2s ease-in-out infinite;
-        }
-
-        .splash-subtitle { color: var(--text-secondary); margin-top: 1rem; font-size: 1.2rem; }
-
-        .splash-loader {
-            width: 200px; height: 4px;
-            background: var(--bg-tertiary);
-            border-radius: 2px;
-            margin-top: 2rem;
-            overflow: hidden;
-        }
-
-        .splash-loader-bar {
-            height: 100%;
-            background: linear-gradient(90deg, #6366f1, #8b5cf6);
-            border-radius: 2px;
-            animation: loading 2s ease-in-out forwards;
-        }
-
-        @keyframes pulse { 0%, 100% { transform: scale(1); opacity: 1; } 50% { transform: scale(1.05); opacity: 0.8; } }
-        @keyframes loading { 0% { width: 0%; } 100% { width: 100%; } }
-
-        #app-container { display: grid; grid-template-rows: 50px 1fr 300px; height: 100vh; }
-
-        #top-bar {
-            background: var(--bg-secondary);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            align-items: center;
-            padding: 0 1rem;
-            gap: 1.5rem;
-        }
-
-        .logo {
-            font-size: 1.3rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, #6366f1, #8b5cf6);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .menu-item {
-            padding: 0.5rem 1rem;
-            border-radius: 6px;
-            cursor: pointer;
-            transition: background 0.2s;
-            font-size: 0.9rem;
-        }
-
-        .menu-item:hover { background: var(--bg-tertiary); }
-
-        .toolbar { display: flex; gap: 0.5rem; margin-left: auto; }
-
-        .tool-btn {
-            width: 36px; height: 36px;
-            border: none;
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .tool-btn:hover { background: var(--accent); }
-        .tool-btn.active { background: var(--accent); }
-
-        #main-workspace { display: grid; grid-template-columns: 250px 1fr 300px; overflow: hidden; }
-
-        .panel {
-            background: var(--bg-secondary);
-            border-right: 1px solid var(--border);
-            overflow-y: auto;
-        }
-
-        .panel-header {
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border);
-            font-weight: 600;
-            font-size: 0.85rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-        }
-
-        .panel-content { padding: 0.5rem; }
-
-        .layer-item {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem;
-            border-radius: 4px;
-            cursor: pointer;
-            gap: 0.5rem;
-        }
-
-        .layer-item:hover { background: var(--bg-tertiary); }
-        .layer-item.selected { background: var(--accent); }
-
-        .layer-icon {
-            width: 20px; height: 20px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.8rem;
-        }
-
-        .layer-name { flex: 1; font-size: 0.85rem; }
-
-        .layer-actions { display: flex; gap: 0.25rem; opacity: 0; transition: opacity 0.2s; }
-        .layer-item:hover .layer-actions { opacity: 1; }
-
-        .layer-action-btn {
-            width: 20px; height: 20px;
-            border: none;
-            background: transparent;
-            color: var(--text-secondary);
-            cursor: pointer;
-            border-radius: 3px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .layer-action-btn:hover { background: var(--bg-tertiary); color: var(--text-primary); }
-
-        #canvas-area {
-            background: var(--bg-primary);
-            position: relative;
-            overflow: hidden;
-        }
-
-        #main-canvas {
-            position: absolute;
-            top: 0; left: 0;
-            cursor: crosshair;
-        }
-
-        #inspector-panel { border-right: 1px solid var(--border); border-left: 1px solid var(--border); }
-
-        .inspector-section { border-bottom: 1px solid var(--border); }
-
-        .inspector-section-header {
-            padding: 0.75rem 1rem;
-            font-weight: 600;
-            font-size: 0.8rem;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            cursor: pointer;
-        }
-
-        .inspector-section-header:hover { background: var(--bg-tertiary); }
-
-        .inspector-section-content { padding: 0.75rem 1rem; }
-
-        .property-row {
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .property-label { font-size: 0.75rem; color: var(--text-secondary); width: 60px; }
-
-        .property-input {
-            flex: 1;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 0.4rem 0.5rem;
-            color: var(--text-primary);
-            font-size: 0.85rem;
-        }
-
-        .property-input:focus { outline: none; border-color: var(--accent); }
-
-        .color-picker-wrapper { position: relative; width: 30px; height: 30px; }
-
-        .color-picker {
-            width: 100%; height: 100%;
-            border: none;
-            border-radius: 4px;
-            cursor: pointer;
-        }
-
-        #bottom-panel {
-            background: var(--bg-secondary);
-            border-top: 1px solid var(--border);
-            display: flex;
-            flex-direction: column;
-        }
-
-        .bottom-tabs { display: flex; border-bottom: 1px solid var(--border); }
-
-        .bottom-tab {
-            padding: 0.75rem 1.5rem;
-            cursor: pointer;
-            border-bottom: 2px solid transparent;
-            transition: all 0.2s;
-            font-size: 0.85rem;
-        }
-
-        .bottom-tab:hover { background: var(--bg-tertiary); }
-        .bottom-tab.active { border-bottom-color: var(--accent); color: var(--accent); }
-
-        .bottom-panel-content { flex: 1; overflow-y: auto; padding: 1rem; }
-
-        .code-editor {
-            background: var(--bg-primary);
-            border-radius: 6px;
-            padding: 1rem;
-            font-family: 'Monaco', 'Menlo', monospace;
-            font-size: 0.85rem;
-            line-height: 1.6;
-            overflow-x: auto;
-            white-space: pre;
-        }
-
-        .code-keyword { color: #c792ea; }
-        .code-selector { color: #ffcb6b; }
-        .code-property { color: #82aaff; }
-        .code-value { color: #c3e88d; }
-        .code-comment { color: #676e95; }
-        .code-string { color: #c3e88d; }
-
-        #chat-container { display: flex; flex-direction: column; height: 100%; }
-
-        #chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 1rem;
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .chat-message {
-            max-width: 80%;
-            padding: 0.75rem 1rem;
-            border-radius: 12px;
-            font-size: 0.9rem;
-            line-height: 1.5;
-        }
-
-        .chat-message.user { background: var(--accent); align-self: flex-end; border-bottom-right-radius: 4px; }
-        .chat-message.assistant { background: var(--bg-tertiary); align-self: flex-start; border-bottom-left-radius: 4px; }
-
-        .chat-input-container {
-            display: flex;
-            padding: 1rem;
-            border-top: 1px solid var(--border);
-            gap: 0.5rem;
-        }
-
-        #chat-input {
-            flex: 1;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.75rem 1rem;
-            color: var(--text-primary);
-            font-size: 0.9rem;
-        }
-
-        #chat-input:focus { outline: none; border-color: var(--accent); }
-
-        #chat-send {
-            width: 44px; height: 44px;
-            border: none;
-            background: var(--accent);
-            color: white;
-            border-radius: 8px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        #chat-send:hover { background: var(--accent-hover); }
-
-        #timeline-container { display: flex; flex-direction: column; height: 100%; }
-
-        .timeline-controls {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            padding: 0.75rem 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .timeline-play-btn {
-            width: 36px; height: 36px;
-            border: none;
-            background: var(--accent);
-            color: white;
-            border-radius: 50%;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .timeline-scrubber {
-            flex: 1;
-            height: 4px;
-            background: var(--bg-tertiary);
-            border-radius: 2px;
-            position: relative;
-            cursor: pointer;
-        }
-
-        .timeline-scrubber-thumb {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 12px; height: 12px;
-            background: var(--accent);
-            border-radius: 50%;
-            left: 0%;
-        }
-
-        .timeline-layers { flex: 1; overflow-y: auto; }
-
-        .timeline-layer {
-            display: flex;
-            align-items: center;
-            padding: 0.5rem 1rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .timeline-layer-name { width: 150px; font-size: 0.85rem; }
-
-        .timeline-layer-track {
-            flex: 1;
-            height: 30px;
-            background: var(--bg-tertiary);
-            border-radius: 4px;
-            position: relative;
-        }
-
-        .timeline-keyframe {
-            position: absolute;
-            top: 50%;
-            transform: translate(-50%, -50%);
-            width: 10px; height: 10px;
-            background: var(--accent);
-            border-radius: 2px;
-        }
-
-        .assets-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(60px, 1fr));
-            gap: 0.5rem;
-        }
-
-        .asset-item {
-            aspect-ratio: 1;
-            background: var(--bg-tertiary);
-            border-radius: 6px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .asset-item:hover { background: var(--accent); transform: scale(1.05); }
-
-        #context-menu {
-            position: fixed;
-            background: var(--bg-secondary);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 0.5rem 0;
-            min-width: 180px;
-            z-index: 1000;
-            display: none;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
-        }
-
-        #context-menu.active { display: block; }
-
-        .context-menu-item {
-            padding: 0.5rem 1rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 0.5rem;
-            font-size: 0.85rem;
-        }
-
-        .context-menu-item:hover { background: var(--bg-tertiary); }
-        .context-menu-divider { height: 1px; background: var(--border); margin: 0.5rem 0; }
-
-        #onboarding-overlay {
-            position: fixed;
-            top: 0; left: 0;
-            width: 100%; height: 100%;
-            background: rgba(0,0,0,0.8);
-            z-index: 2000;
-            display: none;
-        }
-
-        #onboarding-overlay.active { display: flex; align-items: center; justify-content: center; }
-
-        .onboarding-step {
-            background: var(--bg-secondary);
-            border-radius: 12px;
-            padding: 2rem;
-            max-width: 400px;
-            text-align: center;
-            border: 2px solid var(--accent);
-        }
-
-        .onboarding-title { font-size: 1.5rem; margin-bottom: 1rem; color: var(--accent); }
-        .onboarding-description { color: var(--text-secondary); margin-bottom: 1.5rem; line-height: 1.6; }
-        .onboarding-nav { display: flex; justify-content: space-between; gap: 1rem; }
-
-        #zoom-controls {
-            position: absolute;
-            bottom: 1rem; right: 1rem;
-            display: flex;
-            gap: 0.5rem;
-            background: var(--bg-secondary);
-            border-radius: 8px;
-            padding: 0.5rem;
-            border: 1px solid var(--border);
-        }
-
-        .zoom-btn {
-            width: 32px; height: 32px;
-            border: none;
-            background: var(--bg-tertiary);
-            color: var(--text-primary);
-            border-radius: 4px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .zoom-btn:hover { background: var(--accent); }
-
-        .zoom-level {
-            display: flex;
-            align-items: center;
-            padding: 0 0.75rem;
-            font-size: 0.85rem;
-            min-width: 50px;
-            justify-content: center;
-        }
-
-        .btn {
-            padding: 0.6rem 1.2rem;
-            border: none;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.9rem;
-            transition: all 0.2s;
-        }
-
-        .btn-primary { background: var(--accent); color: white; }
-        .btn-primary:hover { background: var(--accent-hover); }
-        .btn-secondary { background: var(--bg-tertiary); color: var(--text-primary); }
-        .btn-secondary:hover { background: var(--border); }
-
-        ::-webkit-scrollbar { width: 8px; height: 8px; }
-        ::-webkit-scrollbar-track { background: var(--bg-primary); }
-        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: var(--text-secondary); }
-
-        @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
-        @keyframes slideOut { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NexusStudio Pro</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<style>
+:root {
+    --bg-0:#0a0a0a;--bg-1:#141414;--bg-2:#1e1e1e;--bg-3:#282828;--bg-4:#333;
+    --border:#2a2a2a;--border-h:#444;
+    --t0:#f5f5f5;--t1:#ccc;--t2:#888;--t3:#555;
+    --accent:#00d4aa;--accent-dim:rgba(0,212,170,.15);--accent-h:#00f0c0;
+    --warn:#ff8c42;--err:#ff4757;--ok:#2ed573;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Space Grotesk',sans-serif;background:var(--bg-0);color:var(--t0);height:100vh;display:flex;flex-direction:column;overflow:hidden;font-size:13px;}
+::-webkit-scrollbar{width:5px;height:5px;}
+::-webkit-scrollbar-track{background:var(--bg-1);}
+::-webkit-scrollbar-thumb{background:var(--bg-4);border-radius:4px;}
+::-webkit-scrollbar-thumb:hover{background:var(--t3);}
+
+#topbar{height:44px;background:var(--bg-1);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:8px;flex-shrink:0;z-index:50;}
+.logo{font-weight:700;font-size:15px;letter-spacing:-.5px;background:linear-gradient(135deg,var(--accent),#00f0c0);-webkit-background-clip:text;-webkit-text-fill-color:transparent;margin-right:8px;}
+.menu-item{padding:4px 10px;border-radius:4px;color:var(--t2);cursor:pointer;font-size:12px;transition:.15s;}
+.menu-item:hover{background:var(--bg-3);color:var(--t0);}
+.sep{width:1px;height:20px;background:var(--border);margin:0 4px;}
+.device-btn{width:32px;height:32px;display:flex;align-items:center;justify-content:center;border-radius:6px;border:1px solid transparent;color:var(--t2);cursor:pointer;transition:.15s;font-size:14px;}
+.device-btn:hover{background:var(--bg-3);color:var(--t1);}
+.device-btn.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+.zoom-ctrl{display:flex;align-items:center;gap:4px;background:var(--bg-2);border-radius:6px;padding:2px 4px;}
+.zoom-ctrl button{width:24px;height:24px;border:none;background:transparent;color:var(--t2);cursor:pointer;border-radius:4px;font-size:11px;display:flex;align-items:center;justify-content:center;}
+.zoom-ctrl button:hover{background:var(--bg-3);color:var(--t0);}
+.zoom-ctrl span{color:var(--t1);font-size:11px;min-width:36px;text-align:center;font-family:'JetBrains Mono',monospace;}
+.action-btn{padding:5px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg-2);color:var(--t1);cursor:pointer;font-size:12px;font-family:inherit;display:flex;align-items:center;gap:6px;transition:.15s;}
+.action-btn:hover{border-color:var(--border-h);color:var(--t0);}
+.action-btn.primary{background:var(--accent);color:#000;border-color:var(--accent);font-weight:600;}
+.action-btn.primary:hover{background:var(--accent-h);}
+
+#workspace{flex:1;display:flex;overflow:hidden;}
+
+#leftPanel{width:240px;background:var(--bg-1);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.panel-section{border-bottom:1px solid var(--border);}
+.panel-header{padding:8px 12px;display:flex;align-items:center;justify-content:between;font-size:11px;font-weight:600;color:var(--t2);text-transform:uppercase;letter-spacing:.5px;cursor:pointer;user-select:none;}
+.panel-header:hover{color:var(--t1);}
+.panel-content{padding:6px 8px;}
+.tools-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:3px;}
+.tool-btn{aspect-ratio:1;display:flex;flex-direction:column;align-items:center;justify-content:center;border-radius:6px;border:none;background:transparent;color:var(--t2);cursor:pointer;transition:.15s;font-size:15px;gap:2px;position:relative;}
+.tool-btn span{font-size:8px;letter-spacing:.3px;}
+.tool-btn:hover{background:var(--bg-3);color:var(--t1);}
+.tool-btn.active{background:var(--accent-dim);color:var(--accent);}
+.comp-category{margin-bottom:2px;}
+.comp-cat-header{padding:6px 8px;font-size:11px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.4px;}
+.comp-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;cursor:pointer;transition:.12s;color:var(--t1);font-size:12px;}
+.comp-item:hover{background:var(--bg-3);color:var(--t0);}
+.comp-item i{width:20px;text-align:center;color:var(--t2);font-size:13px;}
+.comp-item:hover i{color:var(--accent);}
+
+.layer-item{display:flex;align-items:center;gap:6px;padding:5px 8px;border-radius:4px;cursor:pointer;transition:.1s;font-size:11px;color:var(--t1);}
+.layer-item:hover{background:var(--bg-3);}
+.layer-item.selected{background:var(--accent-dim);color:var(--accent);}
+.layer-item i{font-size:10px;color:var(--t3);width:14px;text-align:center;}
+.layer-item .layer-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+#canvasContainer{flex:1;display:flex;align-items:center;justify-content:center;overflow:auto;background:var(--bg-0);position:relative;background-image:radial-gradient(circle at 1px 1px,var(--bg-2) 1px,transparent 0);background-size:24px 24px;}
+.artboard-wrapper{transition:transform .3s ease;position:relative;}
+.device-frame{background:#000;border-radius:36px;padding:10px;box-shadow:0 0 0 1px var(--bg-4),0 20px 80px rgba(0,0,0,.6);position:relative;transition:all .3s ease;}
+.device-frame.tablet-frame{border-radius:20px;padding:12px;}
+.device-frame.desktop-frame{border-radius:8px;padding:4px;}
+.device-notch{position:absolute;top:10px;left:50%;transform:translateX(-50%);width:120px;height:28px;background:#000;border-radius:0 0 16px 16px;z-index:10;}
+#artboard{position:relative;overflow:hidden;background:#fff;border-radius:26px;transition:all .3s ease;cursor:default;}
+.device-frame.tablet-frame #artboard{border-radius:10px;}
+.device-frame.desktop-frame #artboard{border-radius:4px;}
+#artboard.draw-mode{cursor:crosshair;}
+#drawCanvas{position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;}
+#artboard .studio-el{position:absolute;cursor:move;user-select:none;transition:box-shadow .1s;}
+#artboard .studio-el:hover{box-shadow:0 0 0 1px rgba(0,212,170,.4);}
+#artboard .studio-el.selected{box-shadow:0 0 0 2px var(--accent);z-index:100;}
+.resize-handle{position:absolute;width:8px;height:8px;background:var(--accent);border:1px solid #000;border-radius:2px;z-index:101;display:none;}
+.studio-el.selected .resize-handle{display:block;}
+.resize-handle.se{bottom:-4px;right:-4px;cursor:se-resize;}
+.resize-handle.sw{bottom:-4px;left:-4px;cursor:sw-resize;}
+.resize-handle.ne{top:-4px;right:-4px;cursor:ne-resize;}
+.resize-handle.nw{top:-4px;left:-4px;cursor:nw-resize;}
+
+#rightPanel{width:300px;background:var(--bg-1);border-left:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow:hidden;}
+.tab-bar{display:flex;border-bottom:1px solid var(--border);flex-shrink:0;}
+.tab-btn{flex:1;padding:10px;text-align:center;font-size:12px;font-weight:500;color:var(--t3);cursor:pointer;border:none;background:transparent;transition:.15s;position:relative;}
+.tab-btn:hover{color:var(--t1);}
+.tab-btn.active{color:var(--accent);}
+.tab-btn.active::after{content:'';position:absolute;bottom:0;left:20%;right:20%;height:2px;background:var(--accent);border-radius:1px;}
+.tab-panel{flex:1;overflow-y:auto;display:none;}
+.tab-panel.active{display:block;}
+.prop-group{padding:10px 12px;border-bottom:1px solid var(--border);}
+.prop-group-title{font-size:10px;font-weight:600;color:var(--t3);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px;}
+.prop-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+.prop-label{font-size:11px;color:var(--t2);min-width:60px;}
+.prop-input{flex:1;height:28px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;padding:0 8px;color:var(--t0);font-size:11px;font-family:'JetBrains Mono',monospace;outline:none;transition:.15s;}
+.prop-input:focus{border-color:var(--accent);}
+.prop-input[type="color"]{padding:2px;cursor:pointer;width:36px;min-width:36px;flex:none;}
+.prop-select{flex:1;height:28px;background:var(--bg-2);border:1px solid var(--border);border-radius:5px;padding:0 6px;color:var(--t0);font-size:11px;font-family:inherit;outline:none;cursor:pointer;}
+.prop-select:focus{border-color:var(--accent);}
+
+#codePanel{padding:0;}
+.code-header{display:flex;align-items:center;justify-content:space-between;padding:8px 12px;background:var(--bg-2);border-bottom:1px solid var(--border);position:sticky;top:0;z-index:2;}
+.code-header span{font-size:11px;color:var(--t2);font-family:'JetBrains Mono',monospace;}
+#codeOutput{padding:12px;font-family:'JetBrains Mono',monospace;font-size:11px;line-height:1.6;color:var(--t1);white-space:pre-wrap;word-break:break-all;tab-size:2;}
+#codeOutput .tag{color:#ff8c42;}
+#codeOutput .attr{color:#00d4aa;}
+#codeOutput .val{color:#ffd166;}
+#codeOutput .css-prop{color:#ff6b9d;}
+#codeOutput .css-val{color:#a8dadc;}
+#codeOutput .comment{color:var(--t3);}
+
+#bottomPanel{height:180px;background:var(--bg-1);border-top:1px solid var(--border);display:flex;flex-shrink:0;}
+#chatPanel{flex:1;display:flex;flex-direction:column;border-right:1px solid var(--border);}
+#chatMessages{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:6px;}
+.chat-msg{max-width:85%;padding:6px 10px;border-radius:8px;font-size:12px;line-height:1.4;animation:chatIn .25s ease;}
+.chat-msg.user{align-self:flex-end;background:var(--accent-dim);color:var(--accent);border-bottom-right-radius:2px;}
+.chat-msg.bot{align-self:flex-start;background:var(--bg-3);color:var(--t1);border-bottom-left-radius:2px;}
+.chat-msg.bot strong{color:var(--accent);}
+@keyframes chatIn{from{opacity:0;transform:translateY(8px);}to{opacity:1;transform:translateY(0);}}
+#chatInputBar{display:flex;gap:6px;padding:8px 12px;border-top:1px solid var(--border);}
+#chatInput{flex:1;height:32px;background:var(--bg-2);border:1px solid var(--border);border-radius:6px;padding:0 10px;color:var(--t0);font-size:12px;font-family:inherit;outline:none;}
+#chatInput:focus{border-color:var(--accent);}
+#chatSend{width:32px;height:32px;border-radius:6px;border:none;background:var(--accent);color:#000;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:.15s;}
+#chatSend:hover{background:var(--accent-h);}
+
+#timelinePanel{width:320px;display:flex;flex-direction:column;flex-shrink:0;}
+.timeline-controls{display:flex;align-items:center;gap:6px;padding:8px 12px;border-bottom:1px solid var(--border);}
+.timeline-controls button{width:28px;height:28px;border-radius:5px;border:1px solid var(--border);background:var(--bg-2);color:var(--t2);cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:11px;transition:.15s;}
+.timeline-controls button:hover{background:var(--bg-3);color:var(--t0);}
+.timeline-controls button.active{border-color:var(--accent);color:var(--accent);background:var(--accent-dim);}
+.timeline-controls span{font-size:11px;color:var(--t2);margin-left:auto;}
+#timelineList{flex:1;overflow-y:auto;padding:6px;}
+.timeline-item{display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:5px;font-size:11px;color:var(--t1);transition:.1s;}
+.timeline-item:hover{background:var(--bg-3);}
+.timeline-item .tl-icon{width:24px;height:24px;border-radius:4px;background:var(--bg-2);display:flex;align-items:center;justify-content:center;color:var(--t2);font-size:10px;}
+.timeline-item .tl-name{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.timeline-item .tl-anim{font-size:10px;color:var(--accent);background:var(--accent-dim);padding:2px 6px;border-radius:3px;}
+.timeline-item .tl-bar{flex:1;height:4px;background:var(--bg-3);border-radius:2px;overflow:hidden;max-width:80px;}
+.timeline-item .tl-bar-fill{height:100%;background:var(--accent);border-radius:2px;transition:width .3s;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;color:var(--t3);font-size:12px;gap:6px;}
+.empty-state i{font-size:24px;opacity:.5;}
+
+.toast{position:fixed;bottom:200px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--bg-3);color:var(--t0);padding:8px 18px;border-radius:8px;font-size:12px;border:1px solid var(--border);box-shadow:0 8px 30px rgba(0,0,0,.4);opacity:0;transition:.3s;z-index:999;pointer-events:none;}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+.toast.success{border-color:var(--ok);color:var(--ok);}
+.toast.error{border-color:var(--err);color:var(--err);}
+
+.playing #artboard .studio-el[data-anim]{animation-fill-mode:both;}
+@keyframes nx-fadeIn{from{opacity:0}to{opacity:1}}
+@keyframes nx-slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes nx-slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}
+@keyframes nx-slideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes nx-slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}
+@keyframes nx-scaleUp{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}
+@keyframes nx-bounce{0%{transform:scale(0)}50%{transform:scale(1.12)}70%{transform:scale(.95)}100%{transform:scale(1)}}
+@keyframes nx-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}
+@keyframes nx-rotate{from{transform:rotate(0)}to{transform:rotate(360deg)}}
+@keyframes nx-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}
+@keyframes nx-drawStroke{from{stroke-dashoffset:var(--dash-len)}to{stroke-dashoffset:0}}
+
+.examples-dropdown{position:absolute;top:36px;left:0;background:var(--bg-2);border:1px solid var(--border);border-radius:8px;padding:4px;min-width:180px;box-shadow:0 12px 40px rgba(0,0,0,.5);z-index:100;display:none;}
+.examples-dropdown.show{display:block;}
+.examples-dropdown button{width:100%;text-align:left;padding:7px 12px;border:none;background:transparent;color:var(--t1);cursor:pointer;border-radius:5px;font-size:12px;font-family:inherit;transition:.1s;}
+.examples-dropdown button:hover{background:var(--bg-3);color:var(--accent);}
+</style>
 </head>
 <body>
-    <div id="splash-screen">
-        <div class="splash-logo">NEXUS</div>
-        <div class="splash-subtitle">Design Studio v3.0</div>
-        <div class="splash-loader"><div class="splash-loader-bar"></div></div>
+
+<!-- BARRA SUPERIOR -->
+<div id="topbar">
+    <div class="logo">NexusStudio</div>
+    <div class="menu-item">Archivo</div>
+    <div class="menu-item">Editar</div>
+    <div class="menu-item">Vista</div>
+    <div class="sep"></div>
+
+    <div class="device-btn active" data-device="phone" title="Telefono"><i class="fa-solid fa-mobile-screen"></i></div>
+    <div class="device-btn" data-device="tablet" title="Tablet"><i class="fa-solid fa-tablet-screen-button"></i></div>
+    <div class="device-btn" data-device="desktop" title="Escritorio"><i class="fa-solid fa-display"></i></div>
+    <div class="sep"></div>
+
+    <div class="zoom-ctrl">
+        <button onclick="changeZoom(-0.1)"><i class="fa-solid fa-minus"></i></button>
+        <span id="zoomVal">85%</span>
+        <button onclick="changeZoom(0.1)"><i class="fa-solid fa-plus"></i></button>
     </div>
+    <div class="sep"></div>
 
-    <div id="app-container">
-        <div id="top-bar">
-            <div class="logo">NEXUS</div>
-            <div class="menu-item">File</div>
-            <div class="menu-item">Edit</div>
-            <div class="menu-item">View</div>
-            <div class="menu-item">Insert</div>
-            <div class="menu-item">Arrange</div>
-            <div class="menu-item">Export</div>
-            <div class="toolbar">
-                <button class="tool-btn" title="Undo" onclick="app.undo()">↶</button>
-                <button class="tool-btn" title="Redo" onclick="app.redo()">↷</button>
-                <button class="tool-btn" title="Preview" onclick="app.togglePreview()">▶</button>
-                <button class="tool-btn" title="Export" onclick="app.exportProject()">↓</button>
-            </div>
-        </div>
-
-        <div id="main-workspace">
-            <div class="panel" id="layers-panel">
-                <div class="panel-header">
-                    <span>LAYERS</span>
-                    <button class="tool-btn" style="width:28px;height:28px;" onclick="app.addLayer()">+</button>
-                </div>
-                <div class="panel-content" id="layers-list"></div>
-            </div>
-
-            <div id="canvas-area">
-                <canvas id="main-canvas"></canvas>
-                <div id="zoom-controls">
-                    <button class="zoom-btn" onclick="app.zoomOut()">−</button>
-                    <div class="zoom-level" id="zoom-level">100%</div>
-                    <button class="zoom-btn" onclick="app.zoomIn()">+</button>
-                </div>
-            </div>
-
-            <div class="panel" id="inspector-panel">
-                <div class="panel-header">INSPECTOR</div>
-                
-                <div class="inspector-section">
-                    <div class="inspector-section-header"><span>Layout</span><span>▼</span></div>
-                    <div class="inspector-section-content">
-                        <div class="property-row">
-                            <span class="property-label">X</span>
-                            <input type="number" class="property-input" id="prop-x" onchange="app.updateProperty('x', this.value)">
-                            <span class="property-label">Y</span>
-                            <input type="number" class="property-input" id="prop-y" onchange="app.updateProperty('y', this.value)">
-                        </div>
-                        <div class="property-row">
-                            <span class="property-label">W</span>
-                            <input type="number" class="property-input" id="prop-w" onchange="app.updateProperty('width', this.value)">
-                            <span class="property-label">H</span>
-                            <input type="number" class="property-input" id="prop-h" onchange="app.updateProperty('height', this.value)">
-                        </div>
-                        <div class="property-row">
-                            <span class="property-label">Rotation</span>
-                            <input type="number" class="property-input" id="prop-rotation" onchange="app.updateProperty('rotation', this.value)">
-                        </div>
-                        <div class="property-row">
-                            <span class="property-label">Opacity</span>
-                            <input type="range" class="property-input" id="prop-opacity" min="0" max="100" onchange="app.updateProperty('opacity', this.value)">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="inspector-section">
-                    <div class="inspector-section-header"><span>Appearance</span><span>▼</span></div>
-                    <div class="inspector-section-content">
-                        <div class="property-row">
-                            <span class="property-label">Fill</span>
-                            <div class="color-picker-wrapper">
-                                <input type="color" class="color-picker" id="prop-fill" onchange="app.updateProperty('fill', this.value)">
-                            </div>
-                            <input type="text" class="property-input" id="prop-fill-text" value="#6366f1" onchange="app.updateProperty('fill', this.value)">
-                        </div>
-                        <div class="property-row">
-                            <span class="property-label">Border</span>
-                            <input type="number" class="property-input" id="prop-border-width" placeholder="Width" onchange="app.updateProperty('borderWidth', this.value)" style="width:60px;">
-                            <div class="color-picker-wrapper">
-                                <input type="color" class="color-picker" id="prop-border-color" value="#333333" onchange="app.updateProperty('borderColor', this.value)">
-                            </div>
-                        </div>
-                        <div class="property-row">
-                            <span class="property-label">Radius</span>
-                            <input type="number" class="property-input" id="prop-radius" onchange="app.updateProperty('borderRadius', this.value)">
-                        </div>
-                    </div>
-                </div>
-
-                <div class="inspector-section">
-                    <div class="inspector-section-header"><span>Effects</span><span>▼</span></div>
-                    <div class="inspector-section-content">
-                        <div class="property-row">
-                            <span class="property-label">Shadow</span>
-                            <input type="checkbox" id="prop-shadow-enabled" onchange="app.toggleShadow()">
-                            <input type="color" class="color-picker" id="prop-shadow-color" value="#000000" onchange="app.updateShadow()">
-                        </div>
-                        <div class="property-row">
-                            <span class="property-label">Blur</span>
-                            <input type="range" class="property-input" id="prop-shadow-blur" min="0" max="50" value="10" onchange="app.updateShadow()">
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="bottom-panel">
-            <div class="bottom-tabs">
-                <div class="bottom-tab active" data-tab="code" onclick="app.switchTab('code')">Code</div>
-                <div class="bottom-tab" data-tab="animation" onclick="app.switchTab('animation')">Animation</div>
-                <div class="bottom-tab" data-tab="assets" onclick="app.switchTab('assets')">Assets</div>
-                <div class="bottom-tab" data-tab="components" onclick="app.switchTab('components')">Components</div>
-                <div class="bottom-tab" data-tab="chat" onclick="app.switchTab('chat')">AI Chat</div>
-                <div class="bottom-tab" data-tab="preview" onclick="app.switchTab('preview')">Preview</div>
-            </div>
-            <div class="bottom-panel-content" id="bottom-panel-content"></div>
+    <div style="position:relative">
+        <button class="action-btn" onclick="toggleExamples()" id="examplesBtn"><i class="fa-solid fa-layer-group"></i> Ejemplos</button>
+        <div class="examples-dropdown" id="examplesDropdown">
+            <button onclick="loadExample('landing')"><i class="fa-solid fa-rocket" style="margin-right:6px;color:var(--accent)"></i>Landing Page</button>
+            <button onclick="loadExample('login')"><i class="fa-solid fa-right-to-bracket" style="margin-right:6px;color:var(--warn)"></i>Login App</button>
+            <button onclick="loadExample('dashboard')"><i class="fa-solid fa-chart-pie" style="margin-right:6px;color:var(--ok)"></i>Dashboard</button>
+            <button onclick="loadExample('ecommerce')"><i class="fa-solid fa-bag-shopping" style="margin-right:6px;color:#ff6b9d"></i>E-Commerce</button>
+            <button onclick="loadExample('social')"><i class="fa-solid fa-comments" style="margin-right:6px;color:#a78bfa"></i>Social Feed</button>
         </div>
     </div>
 
-    <div id="context-menu">
-        <div class="context-menu-item" onclick="app.duplicateSelected()">📋 Duplicate</div>
-        <div class="context-menu-item" onclick="app.deleteSelected()">🗑️ Delete</div>
-        <div class="context-menu-divider"></div>
-        <div class="context-menu-item" onclick="app.groupSelected()">📦 Group</div>
-        <div class="context-menu-item" onclick="app.ungroupSelected()">✂️ Ungroup</div>
-        <div class="context-menu-divider"></div>
-        <div class="context-menu-item" onclick="app.bringToFront()">⬆️ Bring to Front</div>
-        <div class="context-menu-item" onclick="app.sendToBack()">⬇️ Send to Back</div>
+    <div style="flex:1"></div>
+    <button class="action-btn" id="playBtn" onclick="togglePlay()"><i class="fa-solid fa-play"></i> Previsualizar</button>
+    <button class="action-btn primary" onclick="exportHTML()"><i class="fa-solid fa-download"></i> Exportar</button>
+</div>
+
+<!-- ESPACIO DE TRABAJO -->
+<div id="workspace">
+    <!-- PANEL IZQUIERDO -->
+    <div id="leftPanel">
+        <div class="panel-section">
+            <div class="panel-header"><i class="fa-solid fa-pen-ruler" style="margin-right:6px"></i> Herramientas</div>
+            <div class="panel-content">
+                <div class="tools-grid">
+                    <button class="tool-btn active" data-tool="select" title="Seleccionar"><i class="fa-solid fa-arrow-pointer"></i><span>Select</span></button>
+                    <button class="tool-btn" data-tool="rectangle" title="Rectangulo"><i class="fa-regular fa-square"></i><span>Rect</span></button>
+                    <button class="tool-btn" data-tool="circle" title="Circulo"><i class="fa-regular fa-circle"></i><span>Circle</span></button>
+                    <button class="tool-btn" data-tool="text" title="Texto"><i class="fa-solid fa-font"></i><span>Text</span></button>
+                    <button class="tool-btn" data-tool="draw" title="Dibujar"><i class="fa-solid fa-paintbrush"></i><span>Draw</span></button>
+                    <button class="tool-btn" data-tool="eraser" title="Borrar dibujo"><i class="fa-solid fa-eraser"></i><span>Erase</span></button>
+                    <button class="tool-btn" data-tool="image" title="Imagen"><i class="fa-regular fa-image"></i><span>Image</span></button>
+                    <button class="tool-btn" data-tool="line" title="Linea"><i class="fa-solid fa-minus"></i><span>Line</span></button>
+                </div>
+            </div>
+        </div>
+        <div class="panel-section" style="flex:1;overflow-y:auto;">
+            <div class="panel-header"><i class="fa-solid fa-shapes" style="margin-right:6px"></i> Componentes</div>
+            <div class="panel-content" id="componentsList"></div>
+        </div>
+        <div class="panel-section" style="max-height:200px;overflow-y:auto;">
+            <div class="panel-header"><i class="fa-solid fa-layer-group" style="margin-right:6px"></i> Capas <span id="layerCount" style="margin-left:auto;color:var(--t3)">0</span></div>
+            <div id="layersList" style="padding:4px;"></div>
+        </div>
     </div>
 
-    <div id="onboarding-overlay">
-        <div class="onboarding-step">
-            <h2 class="onboarding-title" id="onboarding-title">Welcome to Nexus!</h2>
-            <p class="onboarding-description" id="onboarding-desc">Let's get you started with a quick tour of the interface.</p>
-            <div class="onboarding-nav">
-                <button class="btn btn-secondary" onclick="app.skipOnboarding()">Skip</button>
-                <button class="btn btn-primary" onclick="app.nextOnboardingStep()" id="onboarding-next">Next</button>
+    <!-- CANVAS CENTRAL -->
+    <div id="canvasContainer">
+        <div class="artboard-wrapper" id="artboardWrapper">
+            <div class="device-frame" id="deviceFrame">
+                <div class="device-notch" id="deviceNotch"></div>
+                <div id="artboard"></div>
             </div>
         </div>
     </div>
 
-    <script>
-        class NexusApp {
-            constructor() {
-                this.canvas = document.getElementById('main-canvas');
-                this.ctx = this.canvas.getContext('2d');
-                this.layers = [];
-                this.selectedLayer = null;
-                this.zoom = 1;
-                this.panX = 0;
-                this.panY = 0;
-                this.isDragging = false;
-                this.isPanning = false;
-                this.dragStartX = 0;
-                this.dragStartY = 0;
-                this.currentTool = 'select';
-                this.history = [];
-                this.historyIndex = -1;
-                this.activeTab = 'code';
-                this.isPlaying = false;
-                this.currentTime = 0;
-                this.artboards = [];
-                this.currentArtboard = null;
-                this.onboardingStep = 0;
-                this.init();
-            }
+    <!-- PANEL DERECHO -->
+    <div id="rightPanel">
+        <div class="tab-bar">
+            <button class="tab-btn active" data-tab="props">Propiedades</button>
+            <button class="tab-btn" data-tab="code">Codigo</button>
+        </div>
+        <div class="tab-panel active" id="propsPanel">
+            <div class="empty-state" id="propsEmpty">
+                <i class="fa-solid fa-arrow-pointer"></i>
+                <span>Selecciona un elemento</span>
+            </div>
+            <div id="propsContent" style="display:none;"></div>
+        </div>
+        <div class="tab-panel" id="codePanel">
+            <div class="code-header">
+                <span>HTML + CSS</span>
+                <button class="action-btn" onclick="copyCode()" style="padding:3px 10px;font-size:11px;"><i class="fa-regular fa-copy"></i> Copiar</button>
+            </div>
+            <div id="codeOutput"></div>
+        </div>
+    </div>
+</div>
 
-            init() {
-                this.setupCanvas();
-                this.setupEventListeners();
-                this.loadTemplates();
-                setTimeout(() => this.showSplash(), 100);
-                setTimeout(() => this.startOnboarding(), 2500);
-            }
+<!-- PANEL INFERIOR -->
+<div id="bottomPanel">
+    <div id="chatPanel">
+        <div id="chatMessages"></div>
+        <div id="chatInputBar">
+            <input type="text" id="chatInput" placeholder="Escribe una instruccion... (ej: agregar boton azul)" autocomplete="off">
+            <button id="chatSend" onclick="sendChat()"><i class="fa-solid fa-paper-plane" style="font-size:12px"></i></button>
+        </div>
+    </div>
+    <div id="timelinePanel">
+        <div class="timeline-controls">
+            <button id="tlPlayBtn" onclick="togglePlay()" title="Reproducir"><i class="fa-solid fa-play"></i></button>
+            <button onclick="stopPlay()" title="Detener"><i class="fa-solid fa-stop"></i></button>
+            <button onclick="addAllAnimations()" title="Animar todo"><i class="fa-solid fa-wand-magic-sparkles"></i></button>
+            <span id="animCount">0 animaciones</span>
+        </div>
+        <div id="timelineList">
+            <div class="empty-state" id="tlEmpty"><i class="fa-solid fa-film"></i><span>Sin animaciones</span></div>
+        </div>
+    </div>
+</div>
 
-            setupCanvas() {
-                const canvasArea = document.getElementById('canvas-area');
-                this.canvas.width = canvasArea.clientWidth;
-                this.canvas.height = canvasArea.clientHeight;
-                this.createArtboard('iPhone 14 Pro', 375, 812, 100, 50);
-                this.render();
-            }
+<!-- TOAST -->
+<div class="toast" id="toast"></div>
 
-            createArtboard(name, width, height, x, y) {
-                const artboard = { id: `artboard-${Date.now()}`, name, x, y, width, height, layers: [], selected: true };
-                this.artboards.push(artboard);
-                this.currentArtboard = artboard;
-                return artboard;
-            }
+<script>
+/* ============================================
+   ESTADO GLOBAL
+   ============================================ */
+const S = {
+    elements: [],
+    selectedId: null,
+    device: 'phone',
+    zoom: 0.85,
+    tool: 'select',
+    isDrawing: false,
+    currentPath: [],
+    drawPaths: [],
+    nextId: 1,
+    isDragging: false,
+    dragOffset: {x:0,y:0},
+    isResizing: false,
+    resizeHandle: '',
+    resizeStart: {},
+    isPlaying: false
+};
 
-            setupEventListeners() {
-                this.canvas.addEventListener('mousedown', (e) => this.handleMouseDown(e));
-                this.canvas.addEventListener('mousemove', (e) => this.handleMouseMove(e));
-                this.canvas.addEventListener('mouseup', (e) => this.handleMouseUp(e));
-                this.canvas.addEventListener('wheel', (e) => this.handleWheel(e));
-                this.canvas.addEventListener('contextmenu', (e) => this.handleContextMenu(e));
-                document.addEventListener('keydown', (e) => this.handleKeyboard(e));
-                window.addEventListener('resize', () => this.handleResize());
-                document.addEventListener('click', (e) => {
-                    if (!e.target.closest('#context-menu')) {
-                        document.getElementById('context-menu').classList.remove('active');
-                    }
-                });
-            }
+/* ============================================
+   DISPOSITIVOS
+   ============================================ */
+const DEVICES = {
+    phone:   {w:375, h:812, label:'iPhone 14', zoom:0.85, frameClass:'', notch:true},
+    tablet:  {w:768, h:1024,label:'iPad',       zoom:0.62, frameClass:'tablet-frame', notch:false},
+    desktop: {w:1280,h:720, label:'Desktop',    zoom:0.58, frameClass:'desktop-frame', notch:false}
+};
 
-            handleMouseDown(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = (e.clientX - rect.left - this.panX) / this.zoom;
-                const y = (e.clientY - rect.top - this.panY) / this.zoom;
+/* ============================================
+   DEFINICION DE COMPONENTES
+   ============================================ */
+const COMPS = {
+    button:   {label:'Boton',       icon:'fa-square',          cat:'Basico'},
+    card:     {label:'Tarjeta',      icon:'fa-credit-card',     cat:'Layout'},
+    navbar:   {label:'Barra Nav',    icon:'fa-bars',            cat:'Layout'},
+    input:    {label:'Campo Texto',  icon:'fa-i-cursor',        cat:'Formulario'},
+    textarea: {label:'Area Texto',   icon:'fa-align-left',      cat:'Formulario'},
+    select:   {label:'Seleccionar',  icon:'fa-chevron-down',    cat:'Formulario'},
+    toggle:   {label:'Toggle',       icon:'fa-toggle-on',       cat:'Formulario'},
+    searchbar:{label:'Barra Busqueda',icon:'fa-magnifying-glass',cat:'Formulario'},
+    text:     {label:'Texto',        icon:'fa-font',            cat:'Basico'},
+    heading:  {label:'Titulo',       icon:'fa-heading',         cat:'Basico'},
+    badge:    {label:'Badge',        icon:'fa-tag',             cat:'Basico'},
+    avatar:   {label:'Avatar',       icon:'fa-circle-user',     cat:'Media'},
+    image:    {label:'Imagen',       icon:'fa-image',           cat:'Media'},
+    divider:  {label:'Separador',    icon:'fa-minus',           cat:'Basico'},
+    hero:     {label:'Hero Section', icon:'fa-panorama',        cat:'Layout'},
+    barchart: {label:'Grafica Barras',icon:'fa-chart-bar',     cat:'Graficas'},
+    statcard: {label:'Tarjeta Stat', icon:'fa-chart-line',      cat:'Graficas'},
+    listitem: {label:'Lista Item',   icon:'fa-list',            cat:'Layout'},
+    chip:     {label:'Chip',         icon:'fa-circle-dot',      cat:'Basico'},
+    footer:   {label:'Footer',       icon:'fa-ellipsis',        cat:'Layout'}
+};
 
-                if (e.button === 2 || e.code === 'Space') {
-                    this.isPanning = true;
-                    this.dragStartX = e.clientX;
-                    this.dragStartY = e.clientY;
-                    this.canvas.style.cursor = 'grabbing';
-                } else if (e.button === 0) {
-                    const clickedLayer = this.findLayerAt(x, y);
-                    if (clickedLayer) {
-                        this.selectLayer(clickedLayer);
-                        this.isDragging = true;
-                        this.dragStartX = x;
-                        this.dragStartY = y;
-                    } else {
-                        this.deselectAll();
-                        if (this.currentTool !== 'select') {
-                            this.createShape(x, y);
-                        }
-                    }
-                }
-            }
+/* ============================================
+   PROPIEDADES POR DEFECTO POR TIPO
+   ============================================ */
+const DEFAULTS = {
+    button:   {w:160,h:48,text:'Boton',bg:'#00d4aa',color:'#000',borderRadius:8,fontSize:15,fontWeight:600,borderWidth:0,borderColor:'#000',shadow:'none'},
+    card:     {w:280,h:300,bg:'#1a1a2e',borderColor:'#2a2a4a',borderRadius:14,showImage:true,imageBg:'linear-gradient(135deg,#667eea,#764ba2)',imageHeight:120,padding:16,title:'Titulo de tarjeta',titleSize:16,titleColor:'#f0f0f0',desc:'Descripcion breve del elemento',descSize:12,descColor:'#999',shadow:'0 4px 20px rgba(0,0,0,.3)'},
+    navbar:   {w:375,h:56,bg:'#0f0f23',color:'#f0f0f0',logo:'NexusApp',links:'Inicio,Productos,Contacto',fontSize:13,shadow:'0 2px 10px rgba(0,0,0,.3)'},
+    input:    {w:240,h:44,bg:'#1a1a2e',borderColor:'#333',borderRadius:8,placeholder:'Escribe aqui...',fontSize:14,color:'#f0f0f0',shadow:'none'},
+    textarea: {w:280,h:100,bg:'#1a1a2e',borderColor:'#333',borderRadius:8,placeholder:'Escribe mas...',fontSize:13,color:'#f0f0f0',shadow:'none'},
+    select:   {w:200,h:40,bg:'#1a1a2e',borderColor:'#333',borderRadius:8,placeholder:'Seleccionar...',options:'Opcion 1,Opcion 2,Opcion 3',fontSize:13,color:'#f0f0f0',shadow:'none'},
+    toggle:   {w:52,h:28,active:true,activeColor:'#00d4aa',inactiveColor:'#444',borderRadius:14},
+    searchbar:{w:280,h:44,bg:'#1a1a2e',borderColor:'#333',borderRadius:22,placeholder:'Buscar...',fontSize:13,color:'#f0f0f0',shadow:'none'},
+    text:     {w:200,h:24,text:'Texto de ejemplo',fontSize:14,fontWeight:400,color:'#333',textAlign:'left',lineHeight:1.5},
+    heading:  {w:300,h:36,text:'Titulo Principal',fontSize:28,fontWeight:700,color:'#111',textAlign:'left',lineHeight:1.2},
+    badge:    {w:80,h:26,text:'Nuevo',bg:'#00d4aa',color:'#000',borderRadius:13,fontSize:11,fontWeight:600},
+    avatar:   {w:48,h:48,bg:'linear-gradient(135deg,#f093fb,#f5576c)',borderRadius:50,borderWidth:2,borderColor:'#fff',shadow:'0 2px 8px rgba(0,0,0,.2)'},
+    image:    {w:240,h:160,bg:'linear-gradient(135deg,#4facfe,#00f2fe)',borderRadius:10,shadow:'0 4px 16px rgba(0,0,0,.15)'},
+    divider:  {w:240,h:1,bg:'#ddd',borderRadius:0},
+    hero:     {w:375,h:380,bg:'linear-gradient(135deg,#0c0c1d,#1a1a3e)',title:'Crea experiencias increibles',subtitle:'Disena, prototipa y anima en un solo lugar',titleSize:26,subtitleSize:14,titleColor:'#fff',subtitleColor:'#999',fontSize:14},
+    barchart: {w:280,h:180,bg:'#141428',borderRadius:12,bars:'65,45,80,55,90,40,70',barColor:'#00d4aa',barColor2:'#00f0c0',labelColor:'#888',shadow:'0 4px 16px rgba(0,0,0,.3)'},
+    statcard: {w:160,h:100,bg:'#1a1a2e',borderRadius:12,value:'2,847',label:'Visitas',change:'+12.5%',changeColor:'#2ed573',valueSize:24,labelSize:11,shadow:'0 2px 12px rgba(0,0,0,.2)'},
+    listitem: {w:280,h:52,bg:'#1a1a2e',borderColor:'#2a2a3e',borderRadius:8,title:'Item de lista',subtitle:'Descripcion secundaria',iconBg:'#00d4aa',iconColor:'#000',titleSize:13,subtitleSize:11,titleColor:'#f0f0f0',subtitleColor:'#888'},
+    chip:     {w:100,h:30,text:'Categoria',bg:'#1e1e3e',color:'#aaa',borderColor:'#333',borderRadius:15,fontSize:12},
+    footer:   {w:375,h:120,bg:'#0a0a1a',color:'#666',text:'2025 NexusStudio. Todos los derechos reservados.',links:'Privacidad,Terminos,Soporte',fontSize:11}
+};
 
-            handleMouseMove(e) {
-                const rect = this.canvas.getBoundingClientRect();
-                const x = (e.clientX - rect.left - this.panX) / this.zoom;
-                const y = (e.clientY - rect.top - this.panY) / this.zoom;
+/* ============================================
+   ANIMACIONES DISPONIBLES
+   ============================================ */
+const ANIMS = {
+    fadeIn:   {name:'Desvanecer',   kf:'nx-fadeIn',   dur:'0.6s', delay:'0s'},
+    slideUp:  {name:'Deslizar Arriba',kf:'nx-slideUp', dur:'0.5s', delay:'0s'},
+    slideDown:{name:'Deslizar Abajo', kf:'nx-slideDown',dur:'0.5s', delay:'0s'},
+    slideLeft:{name:'Deslizar Izq',  kf:'nx-slideLeft', dur:'0.5s', delay:'0s'},
+    slideRight:{name:'Deslizar Der', kf:'nx-slideRight',dur:'0.5s', delay:'0s'},
+    scaleUp:  {name:'Escalar',      kf:'nx-scaleUp',   dur:'0.4s', delay:'0s'},
+    bounce:   {name:'Rebotar',      kf:'nx-bounce',    dur:'0.6s', delay:'0s'},
+    pulse:    {name:'Pulsar',       kf:'nx-pulse',     dur:'1s',   delay:'0s', iter:'infinite'},
+    rotate:   {name:'Rotar',        kf:'nx-rotate',    dur:'1.5s', delay:'0s', iter:'infinite'},
+    shake:    {name:'Sacudir',      kf:'nx-shake',     dur:'0.5s', delay:'0s'}
+};
 
-                if (this.isPanning) {
-                    const dx = e.clientX - this.dragStartX;
-                    const dy = e.clientY - this.dragStartY;
-                    this.panX += dx;
-                    this.panY += dy;
-                    this.dragStartX = e.clientX;
-                    this.dragStartY = e.clientY;
-                    this.render();
-                } else if (this.isDragging && this.selectedLayer) {
-                    const dx = x - this.dragStartX;
-                    const dy = y - this.dragStartY;
-                    this.selectedLayer.x += dx;
-                    this.selectedLayer.y += dy;
-                    this.dragStartX = x;
-                    this.dragStartY = y;
-                    this.updateInspector();
-                    this.render();
-                    this.updateCodePanel();
-                }
-            }
+/* ============================================
+   RENDERIZADO DE CONTENIDO DE ELEMENTOS
+   ============================================ */
+function renderElContent(el) {
+    const p = el.props;
+    const ff = "'Space Grotesk',sans-serif";
+    switch(el.type) {
+        case 'button':
+            return `<div style="width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:${p.bg};color:${p.color};border-radius:${p.borderRadius}px;font-size:${p.fontSize}px;font-weight:${p.fontWeight};font-family:${ff};${p.borderWidth?`border:${p.borderWidth}px solid ${p.borderColor};`:''}${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}transition:transform .15s">${p.text}</div>`;
+        case 'card':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}px;${p.borderColor?`border:1px solid ${p.borderColor};`:''}overflow:hidden;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                ${p.showImage?`<div style="height:${p.imageHeight}px;background:${p.imageBg};"></div>`:''}
+                <div style="padding:${p.padding}px;"><div style="font-size:${p.titleSize}px;font-weight:700;color:${p.titleColor};margin-bottom:6px;">${p.title}</div><div style="font-size:${p.descSize}px;color:${p.descColor};line-height:1.5;">${p.desc}</div></div></div>`;
+        case 'navbar':
+            const links = p.links.split(',').map(l=>`<span style="color:${p.color};opacity:.7;font-size:${p.fontSize}px;cursor:pointer">${l.trim()}</span>`).join('');
+            return `<div style="width:100%;height:100%;background:${p.bg};display:flex;align-items:center;padding:0 20px;gap:20px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                <span style="font-weight:700;color:${p.color};font-size:16px;">${p.logo}</span><div style="flex:1"></div>${links}</div>`;
+        case 'input':
+            return `<div style="width:100%;height:100%;background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;display:flex;align-items:center;padding:0 14px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                <span style="color:${p.placeholder?p.color.replace(')',',0.4)').replace('rgb','rgba'):'#666'};font-size:${p.fontSize}px">${p.placeholder}</span></div>`;
+        case 'textarea':
+            return `<div style="width:100%;height:100%;background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;padding:12px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                <span style="color:#666;font-size:${p.fontSize}px">${p.placeholder}</span></div>`;
+        case 'select':
+            const opts = p.options.split(',').map(o=>`<div style="padding:8px 12px;font-size:${p.fontSize}px;color:${p.color}">${o.trim()}</div>`).join('');
+            return `<div style="width:100%;height:100%;background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;display:flex;align-items:center;justify-content:space-between;padding:0 12px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                <span style="font-size:${p.fontSize}px;color:${p.color}">${p.placeholder}</span><i class="fa-solid fa-chevron-down" style="font-size:10px;color:#666"></i></div>`;
+        case 'toggle':
+            const on = p.active;
+            return `<div style="width:100%;height:100%;background:${on?p.activeColor:p.inactiveColor};border-radius:${p.borderRadius}px;position:relative;cursor:pointer;transition:.3s">
+                <div style="width:22px;height:22px;background:#fff;border-radius:50%;position:absolute;top:3px;left:${on?'27px':'3px'};transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div></div>`;
+        case 'searchbar':
+            return `<div style="width:100%;height:100%;background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;display:flex;align-items:center;padding:0 16px;gap:10px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                <i class="fa-solid fa-magnifying-glass" style="font-size:13px;color:#666"></i>
+                <span style="color:#666;font-size:${p.fontSize}px">${p.placeholder}</span></div>`;
+        case 'text':
+            return `<div style="width:100%;font-size:${p.fontSize}px;font-weight:${p.fontWeight};color:${p.color};text-align:${p.textAlign};line-height:${p.lineHeight};font-family:${ff};white-space:pre-wrap;">${p.text}</div>`;
+        case 'heading':
+            return `<div style="width:100%;font-size:${p.fontSize}px;font-weight:${p.fontWeight};color:${p.color};text-align:${p.textAlign};line-height:${p.lineHeight};font-family:${ff}">${p.text}</div>`;
+        case 'badge':
+            return `<div style="display:inline-flex;align-items:center;justify-content:center;background:${p.bg};color:${p.color};border-radius:${p.borderRadius}px;font-size:${p.fontSize}px;font-weight:${p.fontWeight};font-family:${ff};padding:0 12px;height:100%;white-space:nowrap">${p.text}</div>`;
+        case 'avatar':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}%;${p.borderWidth?`border:${p.borderWidth}px solid ${p.borderColor};`:''}${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}display:flex;align-items:center;justify-content:center">
+                <i class="fa-solid fa-user" style="color:rgba(255,255,255,.6);font-size:${Math.min(p.w,p.h)*0.4}px"></i></div>`;
+        case 'image':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}px;${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}display:flex;align-items:center;justify-content:center">
+                <i class="fa-solid fa-image" style="color:rgba(255,255,255,.3);font-size:28px"></i></div>`;
+        case 'divider':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}px"></div>`;
+        case 'hero':
+            return `<div style="width:100%;height:100%;background:${p.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;font-family:${ff};position:relative;overflow:hidden">
+                <div style="position:absolute;top:-40px;right:-40px;width:160px;height:160px;background:rgba(0,212,170,.08);border-radius:50%;"></div>
+                <div style="position:absolute;bottom:-30px;left:-30px;width:120px;height:120px;background:rgba(0,212,170,.05);border-radius:50%;"></div>
+                <div style="font-size:${p.titleSize}px;font-weight:800;color:${p.titleColor};line-height:1.15;margin-bottom:12px;position:relative;z-index:1">${p.title}</div>
+                <div style="font-size:${p.subtitleSize}px;color:${p.subtitleColor};max-width:280px;line-height:1.5;position:relative;z-index:1">${p.subtitle}</div></div>`;
+        case 'barchart': {
+            const bars = p.bars.split(',').map(v=>parseInt(v.trim()));
+            const maxV = Math.max(...bars);
+            const labels = ['Lun','Mar','Mie','Jue','Vie','Sab','Dom'];
+            const barW = Math.max(8, (p.w - 60) / bars.length - 8);
+            const barsHTML = bars.map((v,i)=>{
+                const h = Math.max(4, (v/maxV)*(p.h-50));
+                return `<div style="display:flex;flex-direction:column;align-items:center;gap:4px;flex:1">
+                    <div style="width:${barW}px;height:${h}px;background:linear-gradient(to top,${p.barColor},${p.barColor2});border-radius:4px 4px 0 0;"></div>
+                    <span style="font-size:9px;color:${p.labelColor}">${labels[i]||''}</span></div>`;
+            }).join('');
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}px;padding:12px;display:flex;align-items:flex-end;gap:4px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">${barsHTML}</div>`;
+        }
+        case 'statcard':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}px;padding:14px;font-family:${ff};${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}">
+                <div style="font-size:${p.labelSize}px;color:#888;margin-bottom:6px">${p.label}</div>
+                <div style="font-size:${p.valueSize}px;font-weight:700;color:#f0f0f0">${p.value}</div>
+                <div style="font-size:11px;color:${p.changeColor};margin-top:4px"><i class="fa-solid fa-arrow-up" style="font-size:9px"></i> ${p.change}</div></div>`;
+        case 'listitem':
+            return `<div style="width:100%;height:100%;background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;display:flex;align-items:center;gap:12px;padding:0 14px;font-family:${ff}">
+                <div style="width:32px;height:32px;min-width:32px;background:${p.iconBg};border-radius:8px;display:flex;align-items:center;justify-content:center"><i class="fa-solid fa-bolt" style="color:${p.iconColor};font-size:13px"></i></div>
+                <div><div style="font-size:${p.titleSize}px;font-weight:600;color:${p.titleColor}">${p.title}</div><div style="font-size:${p.subtitleSize}px;color:${p.subtitleColor}">${p.subtitle}</div></div></div>`;
+        case 'chip':
+            return `<div style="display:inline-flex;align-items:center;justify-content:center;background:${p.bg};color:${p.color};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;font-size:${p.fontSize}px;font-family:${ff};padding:0 14px;height:100%;white-space:nowrap">${p.text}</div>`;
+        case 'footer': {
+            const fLinks = p.links.split(',').map(l=>`<span style="cursor:pointer">${l.trim()}</span>`).join('<span style="margin:0 8px;opacity:.3">|</span>');
+            return `<div style="width:100%;height:100%;background:${p.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;font-family:${ff}">
+                <div style="font-size:${p.fontSize}px;color:${p.color}">${fLinks}</div>
+                <div style="font-size:10px;color:${p.color};opacity:.6">${p.text}</div></div>`;
+        }
+        case 'rectangle':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:${p.borderRadius}px;${p.borderWidth?`border:${p.borderWidth}px solid ${p.borderColor};`:''}${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}"></div>`;
+        case 'circle':
+            return `<div style="width:100%;height:100%;background:${p.bg};border-radius:50%;${p.borderWidth?`border:${p.borderWidth}px solid ${p.borderColor};`:''}${p.shadow!=='none'?`box-shadow:${p.shadow};`:''}"></div>`;
+        case 'line':
+            return `<div style="width:100%;height:100%;background:${p.bg||'#333'}"></div>`;
+        default:
+            return `<div style="width:100%;height:100%;background:#f0f0f0;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#999;font-size:11px">${el.type}</div>`;
+    }
+}
 
-            handleMouseUp(e) {
-                this.isDragging = false;
-                this.isPanning = false;
-                this.canvas.style.cursor = this.currentTool === 'select' ? 'default' : 'crosshair';
-            }
+/* ============================================
+   FUNCIONES PRINCIPALES
+   ============================================ */
+function addElement(type, x, y, overrides={}) {
+    const def = DEFAULTS[type] || {w:120,h:80,bg:'#eee',borderRadius:4};
+    const el = {
+        id: S.nextId++,
+        type,
+        x: x || 20,
+        y: y || 20,
+        props: {...def, ...overrides},
+        animation: null
+    };
+    // Ajustar ancho para navbar, hero, footer segun dispositivo
+    if(['navbar','hero','footer'].includes(type) && !overrides.w) {
+        el.props.w = DEVICES[S.device].w;
+    }
+    S.elements.push(el);
+    selectElement(el.id);
+    renderArtboard();
+    updateCode();
+    updateLayers();
+    updateTimeline();
+    return el;
+}
 
-            handleWheel(e) {
-                e.preventDefault();
-                const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                this.zoom = Math.max(0.25, Math.min(4, this.zoom * delta));
-                document.getElementById('zoom-level').textContent = `${Math.round(this.zoom * 100)}%`;
-                this.render();
-            }
+function removeElement(id) {
+    S.elements = S.elements.filter(e=>e.id!==id);
+    if(S.selectedId===id) S.selectedId=null;
+    renderArtboard();
+    updateCode();
+    updateLayers();
+    updateTimeline();
+    updateProps();
+}
 
-            handleContextMenu(e) {
-                e.preventDefault();
-                const menu = document.getElementById('context-menu');
-                menu.style.left = `${e.clientX}px`;
-                menu.style.top = `${e.clientY}px`;
-                menu.classList.add('active');
-            }
+function selectElement(id) {
+    S.selectedId = id;
+    document.querySelectorAll('.studio-el').forEach(d=>{
+        d.classList.toggle('selected', parseInt(d.dataset.id)===id);
+    });
+    updateProps();
+    updateLayers();
+}
 
-            handleKeyboard(e) {
-                const shortcuts = {
-                    'v': () => this.setTool('select'),
-                    'r': () => this.setTool('rectangle'),
-                    'o': () => this.setTool('ellipse'),
-                    't': () => this.setTool('text'),
-                    'Delete': () => this.deleteSelected(),
-                    'Escape': () => this.deselectAll(),
-                };
-                if (shortcuts[e.key.toLowerCase()]) shortcuts[e.key.toLowerCase()]();
-                if ((e.ctrlKey || e.metaKey) && e.key === 'd') { e.preventDefault(); this.duplicateSelected(); }
-                if ((e.ctrlKey || e.metaKey) && e.key === 'z') { e.preventDefault(); if (e.shiftKey) this.redo(); else this.undo(); }
-                if (e.code === 'Space') { e.preventDefault(); this.canvas.style.cursor = 'grab'; }
-            }
+function getSelected() {
+    return S.elements.find(e=>e.id===S.selectedId);
+}
 
-            handleResize() {
-                const canvasArea = document.getElementById('canvas-area');
-                this.canvas.width = canvasArea.clientWidth;
-                this.canvas.height = canvasArea.clientHeight;
-                this.render();
-            }
+/* ============================================
+   RENDERIZAR ARTBOARD
+   ============================================ */
+function renderArtboard() {
+    const ab = document.getElementById('artboard');
+    const dev = DEVICES[S.device];
+    ab.style.width = dev.w+'px';
+    ab.style.height = dev.h+'px';
 
-            setTool(tool) { this.currentTool = tool; this.canvas.style.cursor = tool === 'select' ? 'default' : 'crosshair'; }
+    // Mantener solo el canvas de dibujo si existe
+    const drawCanvas = document.getElementById('drawCanvas');
+    ab.innerHTML = '';
 
-            createShape(x, y) {
-                const layer = {
-                    id: `layer-${Date.now()}`,
-                    type: this.currentTool,
-                    x, y,
-                    width: this.currentTool === 'text' ? 100 : 100,
-                    height: this.currentTool === 'text' ? 30 : 100,
-                    fill: '#6366f1',
-                    stroke: 'transparent',
-                    strokeWidth: 0,
-                    rotation: 0,
-                    opacity: 100,
-                    borderRadius: this.currentTool === 'rectangle' ? 0 : 50,
-                    text: this.currentTool === 'text' ? 'Text' : '',
-                    fontSize: 16,
-                    fontWeight: 'normal',
-                    visible: true,
-                    locked: false,
-                    shadow: { enabled: false, color: '#000000', blur: 10, offsetX: 0, offsetY: 4 }
-                };
-                this.layers.push(layer);
-                if (this.currentArtboard) this.currentArtboard.layers.push(layer);
-                this.selectLayer(layer);
-                this.setTool('select');
-                this.renderLayersList();
-                this.updateInspector();
-                this.updateCodePanel();
-                this.saveHistory();
-            }
+    S.elements.forEach(el => {
+        const div = document.createElement('div');
+        div.className = 'studio-el' + (el.id===S.selectedId?' selected':'');
+        div.dataset.id = el.id;
+        if(el.animation) div.dataset.anim = el.animation.kf;
+        div.style.cssText = `left:${el.x}px;top:${el.y}px;width:${el.props.w}px;height:${el.props.h}px;`;
+        if(S.isPlaying && el.animation) {
+            div.style.animation = `${el.animation.kf} ${el.animation.dur} ${el.animation.delay} ${el.animation.iter||'forwards'} both`;
+            div.style.animationDelay = el.animation.delay;
+        }
+        div.innerHTML = renderElContent(el) +
+            `<div class="resize-handle se"></div><div class="resize-handle sw"></div><div class="resize-handle ne"></div><div class="resize-handle nw"></div>`;
 
-            findLayerAt(x, y) {
-                for (let i = this.layers.length - 1; i >= 0; i--) {
-                    const layer = this.layers[i];
-                    if (!layer.visible) continue;
-                    if (x >= layer.x && x <= layer.x + layer.width && y >= layer.y && y <= layer.y + layer.height) {
-                        return layer;
-                    }
-                }
-                return null;
-            }
-
-            selectLayer(layer) {
-                this.deselectAll();
-                this.selectedLayer = layer;
-                this.updateInspector();
-                this.render();
-                this.renderLayersList();
-                this.updateCodePanel();
-            }
-
-            deselectAll() {
-                this.selectedLayer = null;
-                this.render();
-                this.renderLayersList();
-            }
-
-            render() {
-                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
-                this.ctx.save();
-                this.ctx.translate(this.panX, this.panY);
-                this.ctx.scale(this.zoom, this.zoom);
-
-                this.artboards.forEach(artboard => {
-                    this.ctx.fillStyle = 'white';
-                    this.ctx.fillRect(artboard.x, artboard.y, artboard.width, artboard.height);
-                    if (artboard.selected) {
-                        this.ctx.strokeStyle = '#6366f1';
-                        this.ctx.lineWidth = 2;
-                        this.ctx.strokeRect(artboard.x, artboard.y, artboard.width, artboard.height);
-                    }
-                    this.ctx.fillStyle = '#252525';
-                    this.ctx.font = '12px -apple-system, sans-serif';
-                    this.ctx.fillText(`${artboard.name} (${artboard.width}×${artboard.height})`, artboard.x, artboard.y - 10);
-                    
-                    artboard.layers.forEach(layer => this.drawLayer(layer));
-                });
-
-                if (this.selectedLayer) this.drawSelectionHandles(this.selectedLayer);
-                this.ctx.restore();
-            }
-
-            drawLayer(layer) {
-                if (!layer.visible) return;
-                this.ctx.save();
-                this.ctx.globalAlpha = layer.opacity / 100;
-                this.ctx.translate(layer.x + layer.width / 2, layer.y + layer.height / 2);
-                this.ctx.rotate((layer.rotation * Math.PI) / 180);
-                this.ctx.translate(-(layer.x + layer.width / 2), -(layer.y + layer.height / 2));
-
-                if (layer.shadow && layer.shadow.enabled) {
-                    this.ctx.shadowColor = layer.shadow.color;
-                    this.ctx.shadowBlur = layer.shadow.blur;
-                    this.ctx.shadowOffsetX = layer.shadow.offsetX;
-                    this.ctx.shadowOffsetY = layer.shadow.offsetY;
-                }
-
-                switch (layer.type) {
-                    case 'rectangle':
-                        this.ctx.fillStyle = layer.fill;
-                        this.ctx.beginPath();
-                        this.ctx.roundRect(layer.x, layer.y, layer.width, layer.height, layer.borderRadius);
-                        this.ctx.fill();
-                        if (layer.strokeWidth > 0) {
-                            this.ctx.strokeStyle = layer.stroke;
-                            this.ctx.lineWidth = layer.strokeWidth;
-                            this.ctx.stroke();
-                        }
-                        break;
-                    case 'ellipse':
-                        this.ctx.fillStyle = layer.fill;
-                        this.ctx.beginPath();
-                        this.ctx.ellipse(layer.x + layer.width/2, layer.y + layer.height/2, layer.width/2, layer.height/2, 0, 0, Math.PI * 2);
-                        this.ctx.fill();
-                        break;
-                    case 'text':
-                        this.ctx.fillStyle = layer.fill;
-                        this.ctx.font = `${layer.fontWeight} ${layer.fontSize}px -apple-system, sans-serif`;
-                        this.ctx.textBaseline = 'top';
-                        this.ctx.fillText(layer.text, layer.x, layer.y);
-                        break;
-                }
-                this.ctx.restore();
-            }
-
-            drawSelectionHandles(layer) {
-                this.ctx.strokeStyle = '#6366f1';
-                this.ctx.lineWidth = 2 / this.zoom;
-                this.ctx.strokeRect(layer.x, layer.y, layer.width, layer.height);
-                const handleSize = 8 / this.zoom;
-                const handles = [[layer.x, layer.y], [layer.x + layer.width, layer.y], [layer.x, layer.y + layer.height], [layer.x + layer.width, layer.y + layer.height]];
-                this.ctx.fillStyle = 'white';
-                handles.forEach(([hx, hy]) => {
-                    this.ctx.fillRect(hx - handleSize/2, hy - handleSize/2, handleSize, handleSize);
-                    this.ctx.strokeRect(hx - handleSize/2, hy - handleSize/2, handleSize, handleSize);
-                });
-            }
-
-            renderLayersList() {
-                const container = document.getElementById('layers-list');
-                container.innerHTML = '';
-                [...this.layers].reverse().forEach(layer => {
-                    const div = document.createElement('div');
-                    div.className = `layer-item ${layer === this.selectedLayer ? 'selected' : ''}`;
-                    div.onclick = () => this.selectLayer(layer);
-                    const icons = { rectangle: '▢', ellipse: '○', text: 'T', pen: '✎', image: '🖼' };
-                    div.innerHTML = `
-                        <div class="layer-icon">${icons[layer.type] || '◻'}</div>
-                        <span class="layer-name">${layer.text || layer.type}</span>
-                        <div class="layer-actions">
-                            <button class="layer-action-btn" onclick="event.stopPropagation(); app.toggleVisibility('${layer.id}')">${layer.visible ? '👁' : '🚫'}</button>
-                            <button class="layer-action-btn" onclick="event.stopPropagation(); app.toggleLock('${layer.id}')">${layer.locked ? '🔒' : '🔓'}</button>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                });
-            }
-
-            updateInspector() {
-                if (!this.selectedLayer) return;
-                const layer = this.selectedLayer;
-                document.getElementById('prop-x').value = Math.round(layer.x);
-                document.getElementById('prop-y').value = Math.round(layer.y);
-                document.getElementById('prop-w').value = Math.round(layer.width);
-                document.getElementById('prop-h').value = Math.round(layer.height);
-                document.getElementById('prop-rotation').value = layer.rotation;
-                document.getElementById('prop-opacity').value = layer.opacity;
-                document.getElementById('prop-fill-text').value = layer.fill;
-                document.getElementById('prop-fill').value = layer.fill.startsWith('#') ? layer.fill : '#6366f1';
-                document.getElementById('prop-radius').value = layer.borderRadius || 0;
-                document.getElementById('prop-border-width').value = layer.strokeWidth || 0;
-                document.getElementById('prop-shadow-enabled').checked = layer.shadow?.enabled || false;
-                document.getElementById('prop-shadow-blur').value = layer.shadow?.blur || 10;
-            }
-
-            updateProperty(prop, value) {
-                if (!this.selectedLayer) return;
-                switch (prop) {
-                    case 'x': case 'y': case 'width': case 'height': case 'rotation':
-                        this.selectedLayer[prop] = parseFloat(value) || 0; break;
-                    case 'opacity': this.selectedLayer[prop] = parseInt(value); break;
-                    case 'fill': this.selectedLayer[prop] = value; document.getElementById('prop-fill-text').value = value; break;
-                    case 'borderRadius': this.selectedLayer[prop] = parseInt(value) || 0; break;
-                    case 'borderWidth': this.selectedLayer.strokeWidth = parseInt(value) || 0; break;
-                    case 'borderColor': this.selectedLayer.stroke = value; break;
-                }
-                this.render();
-                this.renderLayersList();
-                this.updateCodePanel();
-                this.saveHistory();
-            }
-
-            toggleShadow() {
-                if (!this.selectedLayer) return;
-                if (!this.selectedLayer.shadow) this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 10, offsetX: 0, offsetY: 4 };
-                this.selectedLayer.shadow.enabled = !this.selectedLayer.shadow.enabled;
-                this.render();
-                this.updateCodePanel();
-            }
-
-            updateShadow() {
-                if (!this.selectedLayer || !this.selectedLayer.shadow) return;
-                this.selectedLayer.shadow.blur = parseInt(document.getElementById('prop-shadow-blur').value);
-                this.selectedLayer.shadow.color = document.getElementById('prop-shadow-color').value;
-                this.render();
-                this.updateCodePanel();
-            }
-
-            toggleVisibility(layerId) {
-                const layer = this.layers.find(l => l.id === layerId);
-                if (layer) { layer.visible = !layer.visible; this.render(); this.renderLayersList(); }
-            }
-
-            toggleLock(layerId) {
-                const layer = this.layers.find(l => l.id === layerId);
-                if (layer) { layer.locked = !layer.locked; this.renderLayersList(); }
-            }
-
-            generateCSS() {
-                if (!this.selectedLayer) return '// Select a layer to see CSS code';
-                const layer = this.selectedLayer;
-                let css = `.element {\n  position: absolute;\n  left: ${layer.x}px;\n  top: ${layer.y}px;\n  width: ${layer.width}px;\n  height: ${layer.height}px;\n`;
-                if (layer.type === 'rectangle') { css += `  background-color: ${layer.fill};\n`; if (layer.borderRadius) css += `  border-radius: ${layer.borderRadius}px;\n`; }
-                else if (layer.type === 'ellipse') { css += `  background-color: ${layer.fill};\n  border-radius: 50%;\n`; }
-                else if (layer.type === 'text') { css += `  color: ${layer.fill};\n  font-size: ${layer.fontSize}px;\n  font-weight: ${layer.fontWeight};\n`; }
-                if (layer.strokeWidth > 0) css += `  border: ${layer.strokeWidth}px solid ${layer.stroke};\n`;
-                css += `  transform: rotate(${layer.rotation}deg);\n  opacity: ${layer.opacity / 100};\n`;
-                if (layer.shadow?.enabled) css += `  box-shadow: ${layer.shadow.offsetX}px ${layer.shadow.offsetY}px ${layer.shadow.blur}px ${layer.shadow.color};\n`;
-                css += `}`;
-                return css;
-            }
-
-            generateReact() {
-                if (!this.selectedLayer) return '// Select a layer to see React code';
-                const layer = this.selectedLayer;
-                const componentName = layer.type.charAt(0).toUpperCase() + layer.type.slice(1);
-                let jsx = `import React from 'react';\n\nconst ${componentName} = () => {\n  return (\n    <div\n      style={{\n        position: 'absolute',\n        left: ${layer.x},\n        top: ${layer.y},\n        width: ${layer.width},\n        height: ${layer.height},\n        backgroundColor: '${layer.fill}',\n`;
-                if (layer.borderRadius) jsx += `        borderRadius: ${layer.borderRadius},\n`;
-                jsx += `        transform: \`rotate(\${${layer.rotation}}deg)\`,\n        opacity: ${layer.opacity / 100}\n      }}\n    >\n`;
-                if (layer.type === 'text') jsx += `      ${layer.text}\n`;
-                jsx += `    </div>\n  );\n};\n\nexport default ${componentName};`;
-                return jsx;
-            }
-
-            updateCodePanel() {
-                const content = document.getElementById('bottom-panel-content');
-                if (this.activeTab !== 'code') return;
-                const css = this.highlightSyntax(this.generateCSS());
-                const react = this.highlightSyntax(this.generateReact());
-                content.innerHTML = `
-                    <div style="display:flex;gap:1rem;margin-bottom:1rem;">
-                        <button class="btn btn-primary" onclick="app.copyCode('css')">Copy CSS</button>
-                        <button class="btn btn-primary" onclick="app.copyCode('react')">Copy React</button>
-                        <button class="btn btn-secondary" onclick="app.downloadCode()">Download</button>
-                    </div>
-                    <h4 style="margin-bottom:0.5rem;color:var(--text-secondary);">CSS</h4>
-                    <div class="code-editor">${css}</div>
-                    <h4 style="margin:1rem 0 0.5rem;color:var(--text-secondary);">React Component</h4>
-                    <div class="code-editor">${react}</div>
-                `;
-            }
-
-            highlightSyntax(code) {
-                return code.replace(/([.#][\w-]+)(\s*{)/g, '<span class="code-selector">$1</span>$2')
-                    .replace(/([\w-]+)(\s*:)/g, '<span class="code-property">$1</span>$2')
-                    .replace(/:\s*([^;]+);/g, ': <span class="code-value">$1</span>;')
-                    .replace(/(\/\/.*)/g, '<span class="code-comment">$1</span>')
-                    .replace(/(['"`])(.*?)\1/g, '<span class="code-string">$1$2$1</span>')
-                    .replace(/\b(import|export|from|const|return|default)\b/g, '<span class="code-keyword">$1</span>');
-            }
-
-            copyCode(type) {
-                const code = type === 'css' ? this.generateCSS() : this.generateReact();
-                navigator.clipboard.writeText(code).then(() => this.showToast(`Copied ${type.toUpperCase()} to clipboard!`));
-            }
-
-            downloadCode() {
-                const code = this.generateCSS();
-                const blob = new Blob([code], { type: 'text/css' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'styles.css'; a.click();
-                URL.revokeObjectURL(url);
-            }
-
-            renderAnimationPanel() {
-                const content = document.getElementById('bottom-panel-content');
-                content.innerHTML = `
-                    <div id="timeline-container">
-                        <div class="timeline-controls">
-                            <button class="timeline-play-btn" onclick="app.togglePlay()">▶</button>
-                            <div class="timeline-scrubber" onclick="app.seekTimeline(event)">
-                                <div class="timeline-scrubber-thumb" style="left: ${this.currentTime}%"></div>
-                            </div>
-                            <span style="font-size:0.85rem;color:var(--text-secondary);">${Math.round(this.currentTime)}%</span>
-                        </div>
-                        <div class="timeline-layers">
-                            ${this.layers.map(layer => `<div class="timeline-layer"><div class="timeline-layer-name">${layer.text || layer.type}</div><div class="timeline-layer-track"><div class="timeline-keyframe" style="left: 0%"></div><div class="timeline-keyframe" style="left: 50%"></div><div class="timeline-keyframe" style="left: 100%"></div></div></div>`).join('')}
-                        </div>
-                    </div>
-                    <div style="margin-top:1rem;padding:1rem;background:var(--bg-tertiary);border-radius:8px;">
-                        <h4 style="margin-bottom:0.5rem;">Animation Presets</h4>
-                        <div style="display:flex;gap:0.5rem;flex-wrap:wrap;">
-                            <button class="btn btn-secondary" onclick="app.applyAnimation('fadeIn')">Fade In</button>
-                            <button class="btn btn-secondary" onclick="app.applyAnimation('slideUp')">Slide Up</button>
-                            <button class="btn btn-secondary" onclick="app.applyAnimation('scaleIn')">Scale In</button>
-                            <button class="btn btn-secondary" onclick="app.applyAnimation('bounce')">Bounce</button>
-                            <button class="btn btn-secondary" onclick="app.applyAnimation('pulse')">Pulse</button>
-                        </div>
-                    </div>
-                `;
-            }
-
-            applyAnimation(preset) {
-                if (!this.selectedLayer) { this.showToast('Please select a layer first'); return; }
-                const animations = { fadeIn: { opacity: [0, 100], duration: 500 }, slideUp: { y: [50, 0], opacity: [0, 100], duration: 400 }, scaleIn: { scale: [0, 1], opacity: [0, 100], duration: 300 }, bounce: { y: [0, -20, 0, -10, 0], duration: 600 }, pulse: { scale: [1, 1.05, 1], duration: 400 } };
-                this.showToast(`Applied ${preset} animation`);
-                this.selectedLayer.animation = { preset, ...animations[preset] };
-                this.updateCodePanel();
-            }
-
-            togglePlay() { this.isPlaying = !this.isPlaying; if (this.isPlaying) this.animate(); }
-
-            animate() {
-                if (!this.isPlaying) return;
-                this.currentTime = (this.currentTime + 1) % 100;
-                this.renderAnimationPanel();
-                requestAnimationFrame(() => this.animate());
-            }
-
-            seekTimeline(e) {
-                const rect = e.target.getBoundingClientRect();
-                const percent = ((e.clientX - rect.left) / rect.width) * 100;
-                this.currentTime = Math.max(0, Math.min(100, percent));
-                this.renderAnimationPanel();
-            }
-
-            renderAssetsPanel() {
-                const content = document.getElementById('bottom-panel-content');
-                const icons = ['home', 'user', 'settings', 'heart', 'star', 'search', 'menu', 'close', 'check', 'arrow', 'plus', 'minus', 'edit', 'delete'];
-                const emojis = { home: '🏠', user: '👤', settings: '⚙️', heart: '❤️', star: '⭐', search: '🔍', menu: '☰', close: '✕', check: '✓', arrow: '➜', plus: '+', minus: '−', edit: '✏️', delete: '🗑️' };
-                content.innerHTML = `
-                    <div style="margin-bottom:1rem;"><input type="text" placeholder="Search icons..." style="width:100%;padding:0.75rem;background:var(--bg-tertiary);border:1px solid var(--border);border-radius:8px;color:var(--text-primary);"></div>
-                    <div class="assets-grid">${icons.map(icon => `<div class="asset-item" onclick="app.addIcon('${icon}')" title="${icon}"><span style="font-size:1.5rem;">${emojis[icon]}</span></div>`).join('')}</div>
-                `;
-            }
-
-            addIcon(name) {
-                this.createShape(100, 100);
-                if (this.selectedLayer) {
-                    const emojis = { home: '🏠', user: '👤', settings: '⚙️', heart: '❤️', star: '⭐', search: '🔍', menu: '☰', close: '✕', check: '✓', arrow: '➜', plus: '+', minus: '−', edit: '✏️', delete: '🗑️' };
-                    this.selectedLayer.text = emojis[name];
-                    this.selectedLayer.type = 'text';
-                    this.render();
-                    this.renderLayersList();
-                }
-            }
-
-            renderComponentsPanel() {
-                const content = document.getElementById('bottom-panel-content');
-                const components = [{ name: 'Button', emoji: '🔘' }, { name: 'Card', emoji: '📇' }, { name: 'Input', emoji: '📝' }, { name: 'Toggle', emoji: '🔀' }, { name: 'Badge', emoji: '🏷️' }, { name: 'Avatar', emoji: '👤' }, { name: 'Modal', emoji: '🪟' }, { name: 'Toast', emoji: '📬' }];
-                content.innerHTML = `<div class="assets-grid">${components.map(comp => `<div class="asset-item" onclick="app.addComponent('${comp.name}')" style="flex-direction:column;gap:0.5rem;"><span style="font-size:1.5rem;">${comp.emoji}</span><span style="font-size:0.75rem;color:var(--text-secondary);">${comp.name}</span></div>`).join('')}</div>`;
-            }
-
-            addComponent(name) {
-                if (name === 'Button') {
-                    this.createShape(150, 150);
-                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 8; this.selectedLayer.text = 'Click me'; this.selectedLayer.width = 120; this.selectedLayer.height = 40; }
-                } else if (name === 'Card') {
-                    this.createShape(100, 100);
-                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 12; this.selectedLayer.width = 200; this.selectedLayer.height = 150; this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 20, offsetX: 0, offsetY: 4 }; }
-                }
-                this.showToast(`Added ${name} component`);
-            }
-
-            renderChatPanel() {
-                const content = document.getElementById('bottom-panel-content');
-                content.innerHTML = `
-                    <div id="chat-container">
-                        <div id="chat-messages">
-                            <div class="chat-message assistant">👋 Hi! I'm your AI design assistant. Try commands like:<br><br>• "Create a red button"<br>• "Add a card with shadow"<br>• "Make it bigger"<br>• "Change color to blue"</div>
-                        </div>
-                        <div class="chat-input-container">
-                            <input type="text" id="chat-input" placeholder="Type a command...">
-                            <button id="chat-send" onclick="app.handleChatSubmit()">➤</button>
-                        </div>
-                    </div>
-                `;
-                document.getElementById('chat-input').addEventListener('keypress', (e) => { if (e.key === 'Enter') this.handleChatSubmit(); });
-            }
-
-            handleChatSubmit() {
-                const input = document.getElementById('chat-input');
-                const message = input.value.trim();
-                if (!message) return;
-                this.addChatMessage(message, 'user');
-                input.value = '';
-                setTimeout(() => this.processCommand(message), 500);
-            }
-
-            addChatMessage(text, type) {
-                const container = document.getElementById('chat-messages');
-                const div = document.createElement('div');
-                div.className = `chat-message ${type}`;
-                div.innerHTML = text;
-                container.appendChild(div);
-                container.scrollTop = container.scrollHeight;
-            }
-
-            processCommand(command) {
-                const cmd = command.toLowerCase();
-                let response = '';
-                if (cmd.includes('create') && cmd.includes('button')) {
-                    this.createShape(150, 150);
-                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 8; this.selectedLayer.text = 'Button'; this.selectedLayer.width = 120; this.selectedLayer.height = 40; this.selectedLayer.fill = '#6366f1'; }
-                    response = '✅ Created a button! You can customize it using the inspector panel.';
-                    this.render(); this.renderLayersList();
-                } else if (cmd.includes('create') && cmd.includes('card')) {
-                    this.createShape(100, 100);
-                    if (this.selectedLayer) { this.selectedLayer.type = 'rectangle'; this.selectedLayer.borderRadius = 12; this.selectedLayer.width = 200; this.selectedLayer.height = 150; this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 20, offsetX: 0, offsetY: 4 }; }
-                    response = '✅ Created a card with shadow effect!';
-                    this.render(); this.renderLayersList();
-                } else if (cmd.includes('red')) {
-                    if (this.selectedLayer) { this.selectedLayer.fill = '#ef4444'; this.render(); response = '🎨 Changed color to red!'; }
-                    else response = 'Please select a layer first.';
-                } else if (cmd.includes('blue')) {
-                    if (this.selectedLayer) { this.selectedLayer.fill = '#3b82f6'; this.render(); response = '🎨 Changed color to blue!'; }
-                    else response = 'Please select a layer first.';
-                } else if (cmd.includes('bigger') || cmd.includes('larger')) {
-                    if (this.selectedLayer) { this.selectedLayer.width *= 1.2; this.selectedLayer.height *= 1.2; this.render(); response = '📏 Made it bigger!'; }
-                    else response = 'Please select a layer first.';
-                } else if (cmd.includes('smaller')) {
-                    if (this.selectedLayer) { this.selectedLayer.width *= 0.8; this.selectedLayer.height *= 0.8; this.render(); response = '📏 Made it smaller!'; }
-                    else response = 'Please select a layer first.';
-                } else if (cmd.includes('shadow')) {
-                    if (this.selectedLayer) { this.selectedLayer.shadow = { enabled: true, color: '#000000', blur: 20, offsetX: 0, offsetY: 4 }; this.render(); response = '✨ Added shadow effect!'; }
-                    else response = 'Please select a layer first.';
-                } else if (cmd.includes('circle') || cmd.includes('ellipse')) {
-                    this.setTool('ellipse'); this.createShape(150, 150);
-                    response = '⭕ Created an ellipse!';
-                    this.render(); this.renderLayersList();
-                } else if (cmd.includes('help')) {
-                    response = '📚 Available commands:<br><br>• "Create button/card/circle"<br>• "Change color to red/blue/green"<br>• "Make it bigger/smaller"<br>• "Add shadow"<br>• "Export CSS/React"';
+        // Eventos del elemento
+        div.addEventListener('mousedown', (e) => {
+            if(S.tool==='select') {
+                if(e.target.classList.contains('resize-handle')) {
+                    startResize(e, el, e.target.classList.contains('se')?'se':e.target.classList.contains('sw')?'sw':e.target.classList.contains('ne')?'ne':'nw');
                 } else {
-                    response = `I understood: "${command}". Try more specific commands like "create a red button" or "add shadow". Type "help" for all commands.`;
-                }
-                this.addChatMessage(response, 'assistant');
-                this.updateCodePanel();
-            }
-
-            renderPreviewPanel() {
-                const content = document.getElementById('bottom-panel-content');
-                const previewHTML = this.layers.map(layer => {
-                    let styles = `position:absolute;left:${layer.x}px;top:${layer.y}px;width:${layer.width}px;height:${layer.height}px;background:${layer.fill};`;
-                    if (layer.borderRadius) styles += `border-radius:${layer.borderRadius}px;`;
-                    if (layer.rotation) styles += `transform:rotate(${layer.rotation}deg);`;
-                    if (layer.opacity < 100) styles += `opacity:${layer.opacity/100};`;
-                    return `<div style="${styles}"></div>`;
-                }).join('');
-                content.innerHTML = `
-                    <div style="display:flex;gap:1rem;justify-content:center;padding:2rem;">
-                        <div style="text-align:center;"><div style="width:180px;height:360px;border:8px solid #333;border-radius:20px;background:white;margin:0 auto;overflow:hidden;position:relative;"><div style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scale(0.5);transform-origin:top center;">${previewHTML}</div></div><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-secondary);">Mobile</p></div>
-                        <div style="text-align:center;"><div style="width:320px;height:240px;border:8px solid #333;border-radius:8px;background:white;margin:0 auto;overflow:hidden;position:relative;"><div style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scale(0.5);transform-origin:top center;">${previewHTML}</div></div><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-secondary);">Tablet</p></div>
-                        <div style="text-align:center;"><div style="width:400px;height:280px;border:8px solid #333;border-radius:8px;background:white;margin:0 auto;overflow:hidden;position:relative;"><div style="position:absolute;top:0;left:0;width:100%;height:100%;transform:scale(0.7);transform-origin:top center;">${previewHTML}</div></div><p style="margin-top:0.5rem;font-size:0.85rem;color:var(--text-secondary);">Desktop</p></div>
-                    </div>
-                `;
-            }
-
-            switchTab(tab) {
-                this.activeTab = tab;
-                document.querySelectorAll('.bottom-tab').forEach(t => t.classList.remove('active'));
-                document.querySelector(`[data-tab="${tab}"]`).classList.add('active');
-                switch (tab) {
-                    case 'code': this.updateCodePanel(); break;
-                    case 'animation': this.renderAnimationPanel(); break;
-                    case 'assets': this.renderAssetsPanel(); break;
-                    case 'components': this.renderComponentsPanel(); break;
-                    case 'chat': this.renderChatPanel(); break;
-                    case 'preview': this.renderPreviewPanel(); break;
+                    e.stopPropagation();
+                    selectElement(el.id);
+                    startDrag(e, el);
                 }
             }
+        });
+        ab.appendChild(div);
+    });
 
-            saveHistory() {
-                this.history = this.history.slice(0, this.historyIndex + 1);
-                this.history.push(JSON.stringify(this.layers));
-                this.historyIndex++;
-            }
+    // Canvas de dibujo
+    const canvas = document.createElement('canvas');
+    canvas.id = 'drawCanvas';
+    canvas.width = dev.w;
+    canvas.height = dev.h;
+    canvas.style.cssText = `position:absolute;top:0;left:0;width:100%;height:100%;z-index:5;pointer-events:${S.tool==='draw'||S.tool==='eraser'?'auto':'none'};`;
+    ab.appendChild(canvas);
 
-            undo() {
-                if (this.historyIndex > 0) {
-                    this.historyIndex--;
-                    this.layers = JSON.parse(this.history[this.historyIndex]);
-                    this.render(); this.renderLayersList();
-                    this.showToast('Undo');
-                }
-            }
+    if(S.tool==='draw'||S.tool==='eraser') {
+        setupDrawCanvas(canvas);
+    }
+    redrawPaths(canvas);
+    ab.classList.toggle('draw-mode', S.tool==='draw'||S.tool==='eraser');
+}
 
-            redo() {
-                if (this.historyIndex < this.history.length - 1) {
-                    this.historyIndex++;
-                    this.layers = JSON.parse(this.history[this.historyIndex]);
-                    this.render(); this.renderLayersList();
-                    this.showToast('Redo');
-                }
-            }
+function updateDevice() {
+    const dev = DEVICES[S.device];
+    const frame = document.getElementById('deviceFrame');
+    const notch = document.getElementById('deviceNotch');
+    frame.className = 'device-frame ' + (dev.frameClass||'');
+    notch.style.display = dev.notch?'block':'none';
+    S.zoom = dev.zoom;
+    document.getElementById('zoomVal').textContent = Math.round(S.zoom*100)+'%';
+    document.getElementById('artboardWrapper').style.transform = `scale(${S.zoom})`;
+    renderArtboard();
+    updateCode();
+}
 
-            duplicateSelected() {
-                if (!this.selectedLayer) return;
-                const newLayer = JSON.parse(JSON.stringify(this.selectedLayer));
-                newLayer.id = `layer-${Date.now()}`;
-                newLayer.x += 20; newLayer.y += 20;
-                this.layers.push(newLayer);
-                this.selectLayer(newLayer);
-                this.renderLayersList();
-                this.saveHistory();
-                document.getElementById('context-menu').classList.remove('active');
-            }
+function changeZoom(delta) {
+    S.zoom = Math.max(0.2, Math.min(2, S.zoom + delta));
+    document.getElementById('zoomVal').textContent = Math.round(S.zoom*100)+'%';
+    document.getElementById('artboardWrapper').style.transform = `scale(${S.zoom})`;
+}
 
-            deleteSelected() {
-                if (!this.selectedLayer) return;
-                this.layers = this.layers.filter(l => l !== this.selectedLayer);
-                this.deselectAll();
-                this.renderLayersList();
-                this.saveHistory();
-                document.getElementById('context-menu').classList.remove('active');
-            }
+/* ============================================
+   DRAG & RESIZE
+   ============================================ */
+function startDrag(e, el) {
+    S.isDragging = true;
+    const ab = document.getElementById('artboard').getBoundingClientRect();
+    S.dragOffset = {x: e.clientX/DEVICES[S.device].w*DEVICES[S.device].w - el.x, y: e.clientY/DEVICES[S.device].w*DEVICES[S.device].w - el.y};
+    const rect = document.getElementById('artboard').getBoundingClientRect();
+    const scale = rect.width / DEVICES[S.device].w;
+    S.dragOffset = {x: (e.clientX - rect.left)/scale - el.x, y: (e.clientY - rect.top)/scale - el.y};
+}
 
-            groupSelected() { this.showToast('Group functionality coming soon'); document.getElementById('context-menu').classList.remove('active'); }
-            ungroupSelected() { this.showToast('Ungroup functionality coming soon'); document.getElementById('context-menu').classList.remove('active'); }
+function startResize(e, el, handle) {
+    S.isResizing = true;
+    S.resizeHandle = handle;
+    const rect = document.getElementById('artboard').getBoundingClientRect();
+    const scale = rect.width / DEVICES[S.device].w;
+    S.resizeStart = {mx: e.clientX, my: e.clientY, x: el.x, y: el.y, w: el.props.w, h: el.props.h, scale};
+}
 
-            bringToFront() {
-                if (!this.selectedLayer) return;
-                this.layers = this.layers.filter(l => l !== this.selectedLayer);
-                this.layers.push(this.selectedLayer);
-                this.render(); this.renderLayersList();
-                document.getElementById('context-menu').classList.remove('active');
-            }
+document.addEventListener('mousemove', (e) => {
+    if(S.isDragging && S.selectedId) {
+        const el = getSelected();
+        if(!el) return;
+        const rect = document.getElementById('artboard').getBoundingClientRect();
+        const scale = rect.width / DEVICES[S.device].w;
+        el.x = Math.round((e.clientX - rect.left)/scale - S.dragOffset.x);
+        el.y = Math.round((e.clientY - rect.top)/scale - S.dragOffset.y);
+        const dom = document.querySelector(`.studio-el[data-id="${el.id}"]`);
+        if(dom) { dom.style.left=el.x+'px'; dom.style.top=el.y+'px'; }
+    }
+    if(S.isResizing && S.selectedId) {
+        const el = getSelected();
+        if(!el) return;
+        const sc = S.resizeStart.scale;
+        const dx = (e.clientX - S.resizeStart.mx)/sc;
+        const dy = (e.clientY - S.resizeStart.my)/sc;
+        const h = S.resizeHandle;
+        if(h.includes('e')) el.props.w = Math.max(20, Math.round(S.resizeStart.w + dx));
+        if(h.includes('s')) el.props.h = Math.max(20, Math.round(S.resizeStart.h + dy));
+        if(h.includes('w')) { el.props.w = Math.max(20, Math.round(S.resizeStart.w - dx)); el.x = Math.round(S.resizeStart.x + dx); }
+        if(h.includes('n')) { el.props.h = Math.max(20, Math.round(S.resizeStart.h - dy)); el.y = Math.round(S.resizeStart.y + dy); }
+        const dom = document.querySelector(`.studio-el[data-id="${el.id}"]`);
+        if(dom) { dom.style.width=el.props.w+'px'; dom.style.height=el.props.h+'px'; dom.style.left=el.x+'px'; dom.style.top=el.y+'px'; dom.innerHTML = renderElContent(el)+'<div class="resize-handle se"></div><div class="resize-handle sw"></div><div class="resize-handle ne"></div><div class="resize-handle nw"></div>'; }
+        updateProps();
+    }
+});
 
-            sendToBack() {
-                if (!this.selectedLayer) return;
-                this.layers = this.layers.filter(l => l !== this.selectedLayer);
-                this.layers.unshift(this.selectedLayer);
-                this.render(); this.renderLayersList();
-                document.getElementById('context-menu').classList.remove('active');
-            }
+document.addEventListener('mouseup', () => {
+    if(S.isDragging || S.isResizing) {
+        S.isDragging = false;
+        S.isResizing = false;
+        renderArtboard();
+        updateCode();
+    }
+});
 
-            zoomIn() { this.zoom = Math.min(4, this.zoom * 1.2); document.getElementById('zoom-level').textContent = `${Math.round(this.zoom * 100)}%`; this.render(); }
-            zoomOut() { this.zoom = Math.max(0.25, this.zoom / 1.2); document.getElementById('zoom-level').textContent = `${Math.round(this.zoom * 100)}%`; this.render(); }
+// Click en artboard vacio para deseleccionar
+document.getElementById('artboard').addEventListener('mousedown', (e) => {
+    if(e.target.id==='artboard' || e.target.id==='drawCanvas') {
+        selectElement(null);
+    }
+});
 
-            loadTemplates() {
-                const templates = [
-                    { type: 'rectangle', x: 50, y: 50, width: 200, height: 100, fill: '#6366f1', borderRadius: 12 },
-                    { type: 'ellipse', x: 300, y: 100, width: 80, height: 80, fill: '#8b5cf6' },
-                    { type: 'text', x: 50, y: 200, width: 200, height: 40, fill: '#ffffff', text: 'Hello Nexus!', fontSize: 24, fontWeight: 'bold' }
-                ];
-                templates.forEach(template => {
-                    const layer = { id: `layer-${Date.now()}-${Math.random()}`, ...template, rotation: 0, opacity: 100, stroke: 'transparent', strokeWidth: 0, visible: true, locked: false, shadow: { enabled: false, color: '#000000', blur: 10, offsetX: 0, offsetY: 4 } };
-                    this.layers.push(layer);
-                    if (this.currentArtboard) this.currentArtboard.layers.push(layer);
+// Click en canvas para crear figuras
+document.getElementById('artboard').addEventListener('click', (e) => {
+    if(S.tool==='rectangle'||S.tool==='circle'||S.tool==='line'||S.tool==='text'||S.tool==='image') {
+        const rect = document.getElementById('artboard').getBoundingClientRect();
+        const scale = rect.width / DEVICES[S.device].w;
+        const x = Math.round((e.clientX - rect.left)/scale - 40);
+        const y = Math.round((e.clientY - rect.top)/scale - 20);
+        const overrides = S.tool==='line' ? {w:120,h:2,bg:'#333'} : S.tool==='text' ? {} : {};
+        addElement(S.tool, x, y, overrides);
+    }
+});
+
+/* ============================================
+   DIBUJO LIBRE
+   ============================================ */
+function setupDrawCanvas(canvas) {
+    let isDrawing = false;
+    canvas.onmousedown = (e) => {
+        isDrawing = true;
+        const rect = canvas.getBoundingClientRect();
+        const scale = canvas.width / rect.width;
+        S.currentPath = [{x:(e.clientX-rect.left)*scale, y:(e.clientY-rect.top)*scale}];
+    };
+    canvas.onmousemove = (e) => {
+        if(!isDrawing) return;
+        const rect = canvas.getBoundingClientRect();
+        const scale = canvas.width / rect.width;
+        const pt = {x:(e.clientX-rect.left)*scale, y:(e.clientY-rect.top)*scale};
+        S.currentPath.push(pt);
+        redrawPaths(canvas, true);
+    };
+    canvas.onmouseup = () => {
+        if(isDrawing && S.currentPath.length > 2) {
+            if(S.tool==='eraser') {
+                // Borrar paths cercanos
+                eraseNear(S.currentPath[0]);
+            } else {
+                S.drawPaths.push({
+                    points: [...S.currentPath],
+                    color: '#00d4aa',
+                    width: 3,
+                    animation: null
                 });
-                this.renderLayersList();
+                // Crear animacion SVG del dibujo
+                createDrawAnimation(S.drawPaths.length - 1);
             }
+            S.currentPath = [];
+            redrawPaths(canvas);
+            updateTimeline();
+        }
+        isDrawing = false;
+    };
+    canvas.onmouseleave = () => { isDrawing = false; S.currentPath = []; redrawPaths(canvas); };
+}
 
-            showSplash() { document.getElementById('splash-screen').classList.add('hidden'); }
+function eraseNear(pt) {
+    S.drawPaths = S.drawPaths.filter(path => {
+        return !path.points.some(p => Math.hypot(p.x-pt.x, p.y-pt.y) < 20);
+    });
+    updateTimeline();
+}
 
-            startOnboarding() {
-                const hasSeenOnboarding = localStorage.getItem('nexus-onboarding');
-                if (!hasSeenOnboarding) {
-                    document.getElementById('onboarding-overlay').classList.add('active');
-                    this.onboardingStep = 0;
-                }
-            }
+function redrawPaths(canvas, currentOnly=false) {
+    const ctx = canvas.getContext('2d');
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            nextOnboardingStep() {
-                const steps = [
-                    { title: 'Welcome to Nexus!', desc: 'A professional design tool built entirely in a single HTML file.' },
-                    { title: 'Layers Panel', desc: 'Manage all your design elements here. Toggle visibility, lock layers, and organize your work.' },
-                    { title: 'Canvas', desc: 'Your creative workspace. Use tools to create shapes, text, and more. Space+drag to pan, scroll to zoom.' },
-                    { title: 'Inspector', desc: 'Fine-tune properties of selected elements including position, size, colors, and effects.' },
-                    { title: 'Bottom Panels', desc: 'Access code export, animations, assets, components, and AI chat assistance.' },
-                    { title: 'Ready to Design!', desc: 'Start creating amazing designs. Try the AI chat or explore the tools!' }
-                ];
-                this.onboardingStep++;
-                if (this.onboardingStep >= steps.length) { this.skipOnboarding(); return; }
-                document.getElementById('onboarding-title').textContent = steps[this.onboardingStep].title;
-                document.getElementById('onboarding-desc').innerHTML = steps[this.onboardingStep].desc;
-                if (this.onboardingStep === steps.length - 1) document.getElementById('onboarding-next').textContent = 'Get Started';
-            }
+    if(!currentOnly) {
+        S.drawPaths.forEach(path => {
+            drawPath(ctx, path.points, path.color, path.width, path.animation && S.isPlaying);
+        });
+    }
+    if(S.currentPath.length > 1) {
+        drawPath(ctx, S.currentPath, S.tool==='eraser'?'#ff4757':'#00d4aa', S.tool==='eraser'?10:3, false);
+    }
+}
 
-            skipOnboarding() { document.getElementById('onboarding-overlay').classList.remove('active'); localStorage.setItem('nexus-onboarding', 'true'); }
+function drawPath(ctx, points, color, width, animated) {
+    if(points.length < 2) return;
+    ctx.beginPath();
+    ctx.moveTo(points[0].x, points[0].y);
+    for(let i=1; i<points.length; i++) {
+        const prev = points[i-1];
+        const curr = points[i];
+        const mx = (prev.x+curr.x)/2;
+        const my = (prev.y+curr.y)/2;
+        ctx.quadraticCurveTo(prev.x, prev.y, mx, my);
+    }
+    ctx.strokeStyle = color;
+    ctx.lineWidth = width;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    if(animated) {
+        ctx.setLineDash([ctx.measureText('').width || 1000]);
+    }
+    ctx.stroke();
+    ctx.setLineDash([]);
+}
 
-            showToast(message) {
-                const toast = document.createElement('div');
-                toast.style.cssText = `position: fixed; bottom: 20px; right: 20px; background: var(--accent); color: white; padding: 0.75rem 1.5rem; border-radius: 8px; font-size: 0.9rem; z-index: 10000; animation: slideIn 0.3s ease;`;
-                toast.textContent = message;
-                document.body.appendChild(toast);
-                setTimeout(() => { toast.style.animation = 'slideOut 0.3s ease'; setTimeout(() => toast.remove(), 300); }, 2000);
-            }
+function createDrawAnimation(index) {
+    const path = S.drawPaths[index];
+    if(!path) return;
+    path.animation = {name: 'Trazo', kf: 'nx-drawStroke', dur: '1.5s', delay: '0s'};
+    toast('Animacion de trazo creada', 'success');
+}
 
-            exportProject() {
-                const projectData = { version: '3.0', artboards: this.artboards, layers: this.layers, exported: new Date().toISOString() };
-                const blob = new Blob([JSON.stringify(projectData, null, 2)], { type: 'application/json' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url; a.download = 'nexus-project.json'; a.click();
-                URL.revokeObjectURL(url);
-                this.showToast('Project exported!');
-            }
+/* ============================================
+   PROPIEDADES
+   ============================================ */
+function updateProps() {
+    const el = getSelected();
+    const empty = document.getElementById('propsEmpty');
+    const content = document.getElementById('propsContent');
+    if(!el) {
+        empty.style.display = 'flex';
+        content.style.display = 'none';
+        return;
+    }
+    empty.style.display = 'none';
+    content.style.display = 'block';
 
-            togglePreview() { this.switchTab('preview'); }
-            addLayer() { this.createShape(100, 100); }
+    let html = `<div class="prop-group"><div class="prop-group-title">Elemento</div>
+        <div class="prop-row"><span class="prop-label">Tipo</span><input class="prop-input" value="${el.type}" disabled></div>
+        <div class="prop-row"><span class="prop-label">X</span><input class="prop-input" type="number" value="${el.x}" onchange="setProp(${el.id},'x',+this.value)"><span class="prop-label" style="min-width:20px">Y</span><input class="prop-input" type="number" value="${el.y}" onchange="setProp(${el.id},'y',+this.value)"></div>
+        <div class="prop-row"><span class="prop-label">Ancho</span><input class="prop-input" type="number" value="${el.props.w}" onchange="setElProp(${el.id},'w',+this.value)"><span class="prop-label" style="min-width:20px">Alto</span><input class="prop-input" type="number" value="${el.props.h}" onchange="setElProp(${el.id},'h',+this.value)"></div>
+    </div>`;
+
+    // Propiedades dinamicas segun tipo
+    const p = el.props;
+    const propFields = getPropFields(el.type);
+    if(propFields.length) {
+        html += `<div class="prop-group"><div class="prop-group-title">Estilo</div>`;
+        propFields.forEach(f => {
+            html += renderPropField(el.id, f);
+        });
+        html += `</div>`;
+    }
+
+    // Animacion
+    html += `<div class="prop-group"><div class="prop-group-title">Animacion</div>
+        <div class="prop-row"><span class="prop-label">Tipo</span><select class="prop-select" onchange="setAnimation(${el.id},this.value)">
+            <option value="">Sin animacion</option>
+            ${Object.entries(ANIMS).map(([k,v])=>`<option value="${k}"${el.animation&&el.animation.kf===v.kf?' selected':''}>${v.name}</option>`).join('')}
+        </select></div>`;
+    if(el.animation) {
+        html += `<div class="prop-row"><span class="prop-label">Duracion</span><input class="prop-input" value="${el.animation.dur}" onchange="setAnimProp(${el.id},'dur',this.value)">
+            <span class="prop-label" style="min-width:30px">Delay</span><input class="prop-input" value="${el.animation.delay}" onchange="setAnimProp(${el.id},'delay',this.value)"></div>
+            <div class="prop-row"><span class="prop-label">Repetir</span><select class="prop-select" onchange="setAnimProp(${el.id},'iter',this.value)">
+            <option value="forwards"${el.animation.iter==='forwards'?' selected':''}>Una vez</option>
+            <option value="infinite"${el.animation.iter==='infinite'?' selected':''}>Infinito</option>
+            <option value="2"${el.animation.iter==='2'?' selected':''}>2 veces</option>
+            <option value="3"${el.animation.iter==='3'?' selected':''}>3 veces</option>
+        </select></div>`;
+    }
+    html += `</div>`;
+
+    // Acciones
+    html += `<div class="prop-group"><div class="prop-row" style="gap:6px">
+        <button class="action-btn" style="flex:1;justify-content:center" onclick="duplicateElement(${el.id})"><i class="fa-regular fa-copy"></i> Duplicar</button>
+        <button class="action-btn" style="flex:1;justify-content:center;color:var(--err);border-color:var(--err)" onclick="removeElement(${el.id})"><i class="fa-solid fa-trash"></i> Eliminar</button>
+    </div></div>`;
+
+    content.innerHTML = html;
+}
+
+function getPropFields(type) {
+    const p = DEFAULTS[type] || {};
+    const fields = [];
+    if(p.bg !== undefined) fields.push({key:'bg',label:'Fondo',type:'color',textType:true});
+    if(p.color !== undefined && !['toggle'].includes(type)) fields.push({key:'color',label:'Color Texto',type:'color',textType:true});
+    if(p.borderRadius !== undefined) fields.push({key:'borderRadius',label:'Radio Borde',type:'number'});
+    if(p.fontSize !== undefined) fields.push({key:'fontSize',label:'Fuente Px',type:'number'});
+    if(p.fontWeight !== undefined) fields.push({key:'fontWeight',label:'Peso Fuente',type:'select',options:['300:Light','400:Regular','500:Medium','600:SemiBold','700:Bold','800:ExtraBold']});
+    if(p.text !== undefined) fields.push({key:'text',label:'Texto',type:'text'});
+    if(p.title !== undefined) fields.push({key:'title',label:'Titulo',type:'text'});
+    if(p.desc !== undefined) fields.push({key:'desc',label:'Descripcion',type:'text'});
+    if(p.subtitle !== undefined) fields.push({key:'subtitle',label:'Subtitulo',type:'text'});
+    if(p.placeholder !== undefined) fields.push({key:'placeholder',label:'Placeholder',type:'text'});
+    if(p.borderColor !== undefined && !['divider','line'].includes(type)) fields.push({key:'borderColor',label:'Borde Color',type:'color',textType:true});
+    if(p.borderWidth !== undefined) fields.push({key:'borderWidth',label:'Borde Ancho',type:'number'});
+    if(p.shadow !== undefined) fields.push({key:'shadow',label:'Sombra',type:'text'});
+    if(p.textAlign !== undefined) fields.push({key:'textAlign',label:'Alinear',type:'select',options:['left:Izquierda','center:Centro','right:Derecha']});
+    if(p.value !== undefined) fields.push({key:'value',label:'Valor',type:'text'});
+    if(p.label !== undefined && ['statcard'].includes(type)) fields.push({key:'label',label:'Etiqueta',type:'text'});
+    if(p.barColor !== undefined) fields.push({key:'barColor',label:'Color Barra',type:'color',textType:true});
+    if(p.bars !== undefined) fields.push({key:'bars',label:'Datos',type:'text'});
+    if(p.logo !== undefined) fields.push({key:'logo',label:'Logo',type:'text'});
+    if(p.links !== undefined) fields.push({key:'links',label:'Links',type:'text'});
+    if(p.imageBg !== undefined) fields.push({key:'imageBg',label:'Img Fondo',type:'color',textType:true});
+    if(p.showImage !== undefined) fields.push({key:'showImage',label:'Mostrar Img',type:'select',options:['true:Si','false:No']});
+    return fields;
+}
+
+function renderPropField(elId, f) {
+    const el = getSelected();
+    const val = el.props[f.key];
+    if(f.type==='color' && f.textType) {
+        const isGradient = typeof val==='string' && val.includes('gradient');
+        return `<div class="prop-row"><span class="prop-label">${f.label}</span>
+            <input class="prop-input" type="color" value="${isGradient?'#00d4aa':val}" onchange="setElProp(${elId},'${f.key}',this.value)">
+            <input class="prop-input" value="${val}" onchange="setElProp(${elId},'${f.key}',this.value)" style="flex:2"></div>`;
+    }
+    if(f.type==='number') return `<div class="prop-row"><span class="prop-label">${f.label}</span><input class="prop-input" type="number" value="${val}" onchange="setElProp(${elId},'${f.key}',+this.value)"></div>`;
+    if(f.type==='select') return `<div class="prop-row"><span class="prop-label">${f.label}</span><select class="prop-select" onchange="setElProp(${elId},'${f.key}',this.value.includes(':')?this.value.split(':')[0]:this.value)">
+        ${f.options.map(o=>{const [v,l]=o.split(':');return `<option value="${v}"${String(val)===v?' selected':''}>${l}</option>`;}).join('')}</select></div>`;
+    return `<div class="prop-row"><span class="prop-label">${f.label}</span><input class="prop-input" value="${val}" onchange="setElProp(${elId},'${f.key}',this.value)"></div>`;
+}
+
+function setProp(id, key, val) {
+    const el = S.elements.find(e=>e.id===id);
+    if(!el) return;
+    el[key] = val;
+    renderArtboard();
+    updateCode();
+}
+function setElProp(id, key, val) {
+    const el = S.elements.find(e=>e.id===id);
+    if(!el) return;
+    if(key==='showImage') val = val==='true';
+    el.props[key] = val;
+    renderArtboard();
+    updateCode();
+    updateProps();
+}
+function setAnimation(id, animKey) {
+    const el = S.elements.find(e=>e.id===id);
+    if(!el) return;
+    el.animation = animKey ? {...ANIMS[animKey]} : null;
+    renderArtboard();
+    updateProps();
+    updateTimeline();
+    updateCode();
+}
+function setAnimProp(id, key, val) {
+    const el = S.elements.find(e=>e.id===id);
+    if(!el || !el.animation) return;
+    el.animation[key] = val;
+    updateProps();
+    updateCode();
+}
+function duplicateElement(id) {
+    const el = S.elements.find(e=>e.id===id);
+    if(!el) return;
+    const newEl = {id:S.nextId++, type:el.type, x:el.x+20, y:el.y+20, props:{...el.props}, animation:el.animation?{...el.animation}:null};
+    S.elements.push(newEl);
+    selectElement(newEl.id);
+    renderArtboard();
+    updateCode();
+    updateLayers();
+    updateTimeline();
+    toast('Elemento duplicado','success');
+}
+
+/* ============================================
+   GENERACION DE CODIGO
+   ============================================ */
+function generateCode() {
+    const dev = DEVICES[S.device];
+    let html = `<!-- NexusStudio - ${dev.label} -->\n`;
+    html += `<div style="width:${dev.w}px;min-height:${dev.h}px;background:#ffffff;position:relative;margin:0 auto;font-family:'Space Grotesk',sans-serif;">\n`;
+
+    S.elements.forEach(el => {
+        const p = el.props;
+        let style = `position:absolute;left:${el.x}px;top:${el.y}px;width:${p.w}px;height:${p.h}px;`;
+        let animStyle = '';
+        if(el.animation) {
+            animStyle = `animation:${el.animation.kf} ${el.animation.dur} ${el.animation.delay} ${el.animation.iter||'forwards'} both;`;
         }
 
-        const app = new NexusApp();
-    </script>
+        switch(el.type) {
+            case 'button':
+                html += `  <button style="${style}display:flex;align-items:center;justify-content:center;background:${p.bg};color:${p.color};border:${p.borderWidth||0}px solid ${p.borderColor||'transparent'};border-radius:${p.borderRadius}px;font-size:${p.fontSize}px;font-weight:${p.fontWeight};cursor:pointer;${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}">${p.text}</button>\n`;
+                break;
+            case 'text': case 'heading':
+                html += `  <div style="${style}font-size:${p.fontSize}px;font-weight:${p.fontWeight};color:${p.color};text-align:${p.textAlign};line-height:${p.lineHeight};${animStyle}">${p.text}</div>\n`;
+                break;
+            case 'card':
+                html += `  <div style="${style}background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;overflow:hidden;${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}">\n`;
+                if(p.showImage) html += `    <div style="height:${p.imageHeight}px;background:${p.imageBg};"></div>\n`;
+                html += `    <div style="padding:${p.padding}px;">\n      <div style="font-size:${p.titleSize}px;font-weight:700;color:${p.titleColor};">${p.title}</div>\n      <div style="font-size:${p.descSize}px;color:${p.descColor};margin-top:4px;">${p.desc}</div>\n    </div>\n  </div>\n`;
+                break;
+            case 'input':
+                html += `  <input type="text" placeholder="${p.placeholder}" style="${style}background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;padding:0 14px;font-size:${p.fontSize}px;color:${p.color};outline:none;${animStyle}">\n`;
+                break;
+            case 'searchbar':
+                html += `  <div style="${style}background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;display:flex;align-items:center;padding:0 16px;gap:10px;${animStyle}">\n    <span style="color:#666;">&#128269;</span>\n    <span style="color:#666;font-size:${p.fontSize}px">${p.placeholder}</span>\n  </div>\n`;
+                break;
+            case 'badge':
+                html += `  <span style="display:inline-flex;align-items:center;background:${p.bg};color:${p.color};border-radius:${p.borderRadius}px;font-size:${p.fontSize}px;font-weight:${p.fontWeight};padding:0 12px;${animStyle}">${p.text}</span>\n`;
+                break;
+            case 'avatar':
+                html += `  <div style="${style}background:${p.bg};border-radius:50%;${p.borderWidth?'border:'+p.borderWidth+'px solid '+p.borderColor+';':''}${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}"></div>\n`;
+                break;
+            case 'image':
+                html += `  <div style="${style}background:${p.bg};border-radius:${p.borderRadius}px;${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}"></div>\n`;
+                break;
+            case 'divider':
+                html += `  <hr style="${style}background:${p.bg};border:none;${animStyle}">\n`;
+                break;
+            case 'hero':
+                html += `  <div style="${style}background:${p.bg};display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:30px;${animStyle}">\n    <h1 style="font-size:${p.titleSize}px;font-weight:800;color:${p.titleColor};margin-bottom:12px;">${p.title}</h1>\n    <p style="font-size:${p.subtitleSize}px;color:${p.subtitleColor};max-width:280px;">${p.subtitle}</p>\n  </div>\n`;
+                break;
+            case 'barchart':
+                const bars = p.bars.split(',');
+                html += `  <div style="${style}background:${p.bg};border-radius:${p.borderRadius}px;padding:12px;display:flex;align-items:flex-end;gap:4px;${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}">\n`;
+                bars.forEach((b,i)=>{ html += `    <div style="flex:1;height:${b.trim()}%;background:${p.barColor};border-radius:4px 4px 0 0;min-height:4px;"></div>\n`; });
+                html += `  </div>\n`;
+                break;
+            case 'statcard':
+                html += `  <div style="${style}background:${p.bg};border-radius:${p.borderRadius}px;padding:14px;${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}">\n    <div style="font-size:${p.labelSize}px;color:#888;">${p.label}</div>\n    <div style="font-size:${p.valueSize}px;font-weight:700;color:#f0f0f0;margin-top:4px;">${p.value}</div>\n    <div style="font-size:11px;color:${p.changeColor};margin-top:4px;">${p.change}</div>\n  </div>\n`;
+                break;
+            case 'navbar':
+                const navLinks = p.links.split(',').map(l=>`<a href="#" style="color:${p.color};opacity:.7;text-decoration:none;font-size:${p.fontSize}px">${l.trim()}</a>`).join('');
+                html += `  <nav style="${style}background:${p.bg};display:flex;align-items:center;padding:0 20px;gap:20px;${p.shadow!=='none'?'box-shadow:'+p.shadow+';':''}${animStyle}">\n    <span style="font-weight:700;color:${p.color};font-size:16px;">${p.logo}</span>\n    <div style="flex:1"></div>${navLinks}\n  </nav>\n`;
+                break;
+            case 'rectangle':
+                html += `  <div style="${style}background:${p.bg};border-radius:${p.borderRadius}px;${p.borderWidth?'border:'+p.borderWidth+'px solid '+p.borderColor+';':''}${animStyle}"></div>\n`;
+                break;
+            case 'circle':
+                html += `  <div style="${style}background:${p.bg};border-radius:50%;${animStyle}"></div>\n`;
+                break;
+            case 'listitem':
+                html += `  <div style="${style}background:${p.bg};border:1px solid ${p.borderColor};border-radius:${p.borderRadius}px;display:flex;align-items:center;gap:12px;padding:0 14px;${animStyle}">\n    <div style="width:32px;height:32px;background:${p.iconBg};border-radius:8px;"></div>\n    <div><div style="font-size:${p.titleSize}px;font-weight:600;color:${p.titleColor};">${p.title}</div><div style="font-size:${p.subtitleSize}px;color:${p.subtitleColor};">${p.subtitle}</div></div>\n  </div>\n`;
+                break;
+            case 'toggle':
+                html += `  <div style="${style}background:${p.active?p.activeColor:p.inactiveColor};border-radius:${p.borderRadius}px;position:relative;cursor:pointer;${animStyle}"><div style="width:22px;height:22px;background:#fff;border-radius:50%;position:absolute;top:3px;left:${p.active?'27px':'3px'};box-shadow:0 1px 4px rgba(0,0,0,.3);transition:.3s;"></div></div>\n`;
+                break;
+            default:
+                html += `  <div style="${style}background:#f0f0f0;border-radius:4px;${animStyle}"></div>\n`;
+        }
+    });
+
+    // Dibujos como SVG
+    S.drawPaths.forEach((path, i) => {
+        let d = `M ${path.points[0].x} ${path.points[0].y}`;
+        for(let j=1;j<path.points.length;j++) {
+            const prev = path.points[j-1];
+            const curr = path.points[j];
+            d += ` Q ${prev.x} ${prev.y} ${(prev.x+curr.x)/2} ${(prev.y+curr.y)/2}`;
+        }
+        const animAttr = path.animation ? ` style="stroke-dasharray:2000;stroke-dashoffset:2000;animation:nx-drawStroke 1.5s forwards;"` : '';
+        html += `  <svg style="position:absolute;top:0;left:0;width:${dev.w}px;height:${dev.h}px;pointer-events:none;z-index:10;"${animAttr}>\n    <path d="${d}" stroke="${path.color}" stroke-width="${path.width}" fill="none" stroke-linecap="round" stroke-linejoin="round"/>\n  </svg>\n`;
+    });
+
+    html += `</div>`;
+
+    // CSS de animaciones si hay alguna
+    const hasAnims = S.elements.some(e=>e.animation) || S.drawPaths.some(p=>p.animation);
+    if(hasAnims) {
+        html += `\n<style>\n`;
+        const usedKfs = new Set();
+        S.elements.forEach(e=>{if(e.animation) usedKfs.add(e.animation.kf);});
+        S.drawPaths.forEach(p=>{if(p.animation) usedKfs.add(p.animation.kf);});
+        const kfMap = {
+            'nx-fadeIn':'@keyframes nx-fadeIn{from{opacity:0}to{opacity:1}}',
+            'nx-slideUp':'@keyframes nx-slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}',
+            'nx-slideDown':'@keyframes nx-slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}',
+            'nx-slideLeft':'@keyframes nx-slideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}',
+            'nx-slideRight':'@keyframes nx-slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}',
+            'nx-scaleUp':'@keyframes nx-scaleUp{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}',
+            'nx-bounce':'@keyframes nx-bounce{0%{transform:scale(0)}50%{transform:scale(1.12)}70%{transform:scale(.95)}100%{transform:scale(1)}}',
+            'nx-pulse':'@keyframes nx-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}',
+            'nx-rotate':'@keyframes nx-rotate{from{transform:rotate(0)}to{transform:rotate(360deg)}}',
+            'nx-shake':'@keyframes nx-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}',
+            'nx-drawStroke':'@keyframes nx-drawStroke{to{stroke-dashoffset:0}}'
+        };
+        usedKfs.forEach(kf=>{ if(kfMap[kf]) html += kfMap[kf]+`\n`; });
+        html += `</style>\n`;
+    }
+
+    return html;
+}
+
+function updateCode() {
+    const code = generateCode();
+    const output = document.getElementById('codeOutput');
+    // Syntax highlighting basico
+    let highlighted = code
+        .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+        .replace(/(&lt;\/?)([\w-]+)/g, '$1<span class="tag">$2</span>')
+        .replace(/([\w-]+)(=)/g, '<span class="attr">$1</span>$2')
+        .replace(/"([^"]*)"/g, '"<span class="val">$1</span>"')
+        .replace(/(\/\*.*?\*\/)/gs, '<span class="comment">$1</span>')
+        .replace(/(@keyframes\s+[\w-]+)/g, '<span class="css-prop">$1</span>')
+        .replace(/([\w-]+)(\s*:)([^;{}]+)/g, '<span class="css-prop">$1</span>$2<span class="css-val">$3</span>');
+    output.innerHTML = highlighted;
+}
+
+function copyCode() {
+    const code = generateCode();
+    navigator.clipboard.writeText(code).then(()=>{
+        toast('Codigo copiado al portapapeles','success');
+    }).catch(()=>{
+        // Fallback
+        const ta = document.createElement('textarea');
+        ta.value = code;
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        document.body.removeChild(ta);
+        toast('Codigo copiado','success');
+    });
+}
+
+/* ============================================
+   CAPAS
+   ============================================ */
+function updateLayers() {
+    const list = document.getElementById('layersList');
+    const count = document.getElementById('layerCount');
+    count.textContent = S.elements.length;
+    if(!S.elements.length) {
+        list.innerHTML = '<div style="padding:12px;text-align:center;color:var(--t3);font-size:11px">Sin elementos</div>';
+        return;
+    }
+    list.innerHTML = [...S.elements].reverse().map(el => {
+        const icon = COMPS[el.type]?.icon || 'fa-square';
+        const name = el.props.text || el.props.title || el.props.label || COMPS[el.type]?.label || el.type;
+        return `<div class="layer-item${el.id===S.selectedId?' selected':''}" onclick="selectElement(${el.id});renderArtboard()">
+            <i class="fa-solid ${icon}"></i><span class="layer-name">${name}</span>
+            ${el.animation?'<i class="fa-solid fa-bolt" style="color:var(--accent);font-size:9px"></i>':''}
+        </div>`;
+    }).join('');
+}
+
+/* ============================================
+   TIMELINE
+   ============================================ */
+function updateTimeline() {
+    const list = document.getElementById('timelineList');
+    const empty = document.getElementById('tlEmpty');
+    const countEl = document.getElementById('animCount');
+    const animElements = S.elements.filter(e=>e.animation);
+    const drawAnims = S.drawPaths.filter(p=>p.animation);
+    const total = animElements.length + drawAnims.length;
+    countEl.textContent = total + ' animacion' + (total!==1?'es':'');
+
+    if(!total) {
+        empty.style.display = 'flex';
+        list.querySelectorAll('.timeline-item').forEach(i=>i.remove());
+        return;
+    }
+    empty.style.display = 'none';
+
+    let html = '';
+    animElements.forEach(el => {
+        const name = el.props.text || el.props.title || el.props.label || el.type;
+        const dur = parseFloat(el.animation.dur)||0.5;
+        const maxDur = 2;
+        const pct = Math.min(100, (dur/maxDur)*100);
+        html += `<div class="timeline-item">
+            <div class="tl-icon"><i class="fa-solid fa-bolt"></i></div>
+            <span class="tl-name">${name}</span>
+            <span class="tl-anim">${el.animation.name}</span>
+            <div class="tl-bar"><div class="tl-bar-fill" style="width:${pct}%"></div></div>
+        </div>`;
+    });
+    drawAnims.forEach((p,i) => {
+        html += `<div class="timeline-item">
+            <div class="tl-icon"><i class="fa-solid fa-paintbrush"></i></div>
+            <span class="tl-name">Dibujo ${i+1}</span>
+            <span class="tl-anim">Trazo</span>
+            <div class="tl-bar"><div class="tl-bar-fill" style="width:75%"></div></div>
+        </div>`;
+    });
+    // Mantener empty oculto
+    list.innerHTML = html + '<div class="empty-state" id="tlEmpty" style="display:none"><i class="fa-solid fa-film"></i><span>Sin animaciones</span></div>';
+}
+
+function addAllAnimations() {
+    const animKeys = Object.keys(ANIMS);
+    S.elements.forEach((el,i) => {
+        if(!el.animation) {
+            el.animation = {...ANIMS[animKeys[i % animKeys.length]], delay: (i*0.1)+'s'};
+        }
+    });
+    S.drawPaths.forEach(p => {
+        if(!p.animation) p.animation = {name:'Trazo', kf:'nx-drawStroke', dur:'1.5s', delay:'0s'};
+    });
+    renderArtboard();
+    updateTimeline();
+    updateCode();
+    updateProps();
+    toast('Animaciones aplicadas a todos los elementos','success');
+}
+
+/* ============================================
+   PLAY / STOP
+   ============================================ */
+function togglePlay() {
+    S.isPlaying = !S.isPlaying;
+    const btn = document.getElementById('playBtn');
+    const tlBtn = document.getElementById('tlPlayBtn');
+    const wrapper = document.getElementById('artboardWrapper');
+    if(S.isPlaying) {
+        btn.innerHTML = '<i class="fa-solid fa-stop"></i> Detener';
+        tlBtn.classList.add('active');
+        wrapper.classList.add('playing');
+    } else {
+        btn.innerHTML = '<i class="fa-solid fa-play"></i> Previsualizar';
+        tlBtn.classList.remove('active');
+        wrapper.classList.remove('playing');
+    }
+    renderArtboard();
+}
+
+function stopPlay() {
+    if(S.isPlaying) togglePlay();
+}
+
+/* ============================================
+   CHAT / INSTRUCCIONES
+   ============================================ */
+function sendChat() {
+    const input = document.getElementById('chatInput');
+    const msg = input.value.trim();
+    if(!msg) return;
+    input.value = '';
+    addChatMsg(msg, 'user');
+    processCommand(msg);
+}
+
+document.getElementById('chatInput').addEventListener('keydown', (e) => {
+    if(e.key==='Enter') sendChat();
+});
+
+function addChatMsg(text, type) {
+    const container = document.getElementById('chatMessages');
+    const div = document.createElement('div');
+    div.className = 'chat-msg ' + type;
+    div.innerHTML = text;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+}
+
+function processCommand(msg) {
+    const lower = msg.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+    const colors = {rojo:'#ff4757',azul:'#4facfe',verde:'#2ed573',amarillo:'#ffd166',negro:'#111111',blanco:'#ffffff',naranja:'#ff8c42',rosa:'#ff6b9d',morado:'#a78bfa',gris:'#888888',teal:'#00d4aa',cyan:'#00f2fe'};
+    let responded = false;
+
+    // Comando: agregar componente
+    for(const [type, comp] of Object.entries(COMPS)) {
+        const typeName = comp.label.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        if(lower.includes(typeName) || lower.includes(type)) {
+            const overrides = {};
+            // Detectar color
+            for(const [cn,cv] of Object.entries(colors)) {
+                if(lower.includes(cn) && DEFAULTS[type]?.bg !== undefined) {
+                    overrides.bg = cv;
+                    break;
+                }
+            }
+            const el = addElement(type, 30 + S.elements.length*5, 30 + S.elements.length*5, overrides);
+            addChatMsg(`<strong>${comp.label}</strong> agregado al canvas`, 'bot');
+            responded = true;
+            break;
+        }
+    }
+
+    // Comando: cambiar color
+    if(!responded && (lower.includes('cambiar color') || lower.includes('color a'))) {
+        const sel = getSelected();
+        if(!sel) { addChatMsg('Primero selecciona un elemento', 'bot'); return; }
+        for(const [cn,cv] of Object.entries(colors)) {
+            if(lower.includes(cn)) {
+                if(DEFAULTS[sel.type]?.bg !== undefined) { sel.props.bg = cv; }
+                if(DEFAULTS[sel.type]?.color !== undefined && !['toggle'].includes(sel.type)) { sel.props.color = cn==='negro'?'#000':cn==='blanco'?'#fff':'#f0f0f0'; }
+                renderArtboard(); updateCode(); updateProps();
+                addChatMsg(`Color cambiado a <strong>${cn}</strong>`, 'bot');
+                responded = true; break;
+            }
+        }
+        if(!responded) addChatMsg('Color no reconocido. Prueba: rojo, azul, verde, teal...', 'bot');
+    }
+
+    // Comando: cambiar texto
+    if(!responded && (lower.includes('cambiar texto') || lower.includes('texto a'))) {
+        const sel = getSelected();
+        if(!sel) { addChatMsg('Primero selecciona un elemento', 'bot'); return; }
+        const newText = msg.replace(/cambiar texto a /i,'').replace(/texto a /i,'').trim();
+        if(sel.props.text !== undefined) sel.props.text = newText;
+        else if(sel.props.title !== undefined) sel.props.title = newText;
+        renderArtboard(); updateCode(); updateProps();
+        addChatMsg(`Texto actualizado a "<strong>${newText}</strong>"`, 'bot');
+        responded = true;
+    }
+
+    // Comando: animar
+    if(!responded && lower.includes('animar')) {
+        const sel = getSelected();
+        if(!sel) { addChatMsg('Primero selecciona un elemento', 'bot'); return; }
+        let foundAnim = null;
+        for(const [k,v] of Object.entries(ANIMS)) {
+            if(lower.includes(v.name.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")) || lower.includes(k)) {
+                foundAnim = k; break;
+            }
+        }
+        if(!foundAnim) {
+            // Asignar animacion aleatoria
+            const keys = Object.keys(ANIMS);
+            foundAnim = keys[Math.floor(Math.random()*keys.length)];
+        }
+        sel.animation = {...ANIMS[foundAnim]};
+        renderArtboard(); updateCode(); updateProps(); updateTimeline();
+        addChatMsg(`Animacion <strong>${ANIMS[foundAnim].name}</strong> aplicada`, 'bot');
+        responded = true;
+    }
+
+    // Comando: borrar / eliminar
+    if(!responded && (lower.includes('borrar') || lower.includes('eliminar'))) {
+        const sel = getSelected();
+        if(!sel) { addChatMsg('No hay elemento seleccionado', 'bot'); return; }
+        removeElement(sel.id);
+        addChatMsg('Elemento eliminado', 'bot');
+        responded = true;
+    }
+
+    // Comando: duplicar
+    if(!responded && lower.includes('duplicar')) {
+        const sel = getSelected();
+        if(!sel) { addChatMsg('No hay elemento seleccionado', 'bot'); return; }
+        duplicateElement(sel.id);
+        addChatMsg('Elemento duplicado', 'bot');
+        responded = true;
+    }
+
+    // Comando: dispositivo
+    if(!responded) {
+        if(lower.includes('telefono') || lower.includes('phone') || lower.includes('movil')) {
+            S.device='phone'; updateDevice();
+            addChatMsg('Dispositivo: <strong>Telefono</strong>', 'bot'); responded=true;
+        } else if(lower.includes('tablet')) {
+            S.device='tablet'; updateDevice();
+            addChatMsg('Dispositivo: <strong>Tablet</strong>', 'bot'); responded=true;
+        } else if(lower.includes('escritorio') || lower.includes('desktop') || lower.includes('pc')) {
+            S.device='desktop'; updateDevice();
+            addChatMsg('Dispositivo: <strong>Escritorio</strong>', 'bot'); responded=true;
+        }
+    }
+
+    // Comando: limpiar
+    if(!responded && (lower.includes('limpiar') || lower.includes('limpiar todo') || lower.includes('nuevo'))) {
+        S.elements = []; S.drawPaths = []; S.selectedId = null;
+        renderArtboard(); updateCode(); updateLayers(); updateTimeline(); updateProps();
+        addChatMsg('Canvas limpiado', 'bot'); responded=true;
+    }
+
+    // Comando: ayuda
+    if(!responded && lower.includes('ayuda') || lower.includes('help')) {
+        addChatMsg('Comandos disponibles:<br><strong>agregar [componente]</strong> - Agrega al canvas<br><strong>cambiar color [color]</strong> - Cambia fondo<br><strong>cambiar texto [texto]</strong> - Cambia texto<br><strong>animar [tipo]</strong> - Aplica animacion<br><strong>borrar</strong> - Elimina seleccion<br><strong>duplicar</strong> - Duplica seleccion<br><strong>telefono/tablet/pc</strong> - Cambia dispositivo<br><strong>limpiar</strong> - Reinicia canvas', 'bot');
+        responded = true;
+    }
+
+    if(!responded) {
+        addChatMsg('No entendi ese comando. Escribe <strong>ayuda</strong> para ver las opciones disponibles.', 'bot');
+    }
+}
+
+/* ============================================
+   EJEMPLOS PRECONSTRUIDOS
+   ============================================ */
+function loadExample(name) {
+    S.elements = [];
+    S.drawPaths = [];
+    S.selectedId = null;
+    document.getElementById('examplesDropdown').classList.remove('show');
+
+    switch(name) {
+        case 'landing': {
+            S.device='phone'; updateDevice();
+            addElement('navbar', 0, 0, {w:375,h:56,bg:'#0a0a1a',logo:'NexusApp',links:'Inicio,Funciones,Precio',color:'#f0f0f0'});
+            addElement('hero', 0, 56, {w:375,h:340,bg:'linear-gradient(135deg,#0a0a1a,#1a1a3e)',title:'Disena sin limites',subtitle:'La herramienta que necesitas para crear interfaces increibles',titleSize:24,subtitleSize:13});
+            addElement('button', 107, 340, {w:160,h:46,text:'Comenzar gratis',bg:'#00d4aa',color:'#000',borderRadius:23});
+            addElement('heading', 20, 420, {w:335,h:30,text:'Funciones principales',fontSize:18,fontWeight:700,color:'#111'});
+            addElement('card', 20, 460, {w:160,h:180,bg:'#f8f9fa',borderColor:'#eee',imageBg:'linear-gradient(135deg,#4facfe,#00f2fe)',imageHeight:70,title:'Prototipado',desc:'Crea prototipos interactivos en minutos',titleColor:'#111',descColor:'#666',shadow:'none'});
+            addElement('card', 195, 460, {w:160,h:180,bg:'#f8f9fa',borderColor:'#eee',imageBg:'linear-gradient(135deg,#f093fb,#f5576c)',imageHeight:70,title:'Animaciones',desc:'Anima tus diseños con un solo clic',titleColor:'#111',descColor:'#666',shadow:'none'});
+            addElement('footer', 0, 680, {w:375,h:100,bg:'#0a0a1a',color:'#555',text:'2025 NexusStudio',links:'Privacidad,Terminos,Contacto'});
+            // Animaciones
+            S.elements[1].animation = {...ANIMS.slideUp, delay:'0.1s'};
+            S.elements[2].animation = {...ANIMS.scaleUp, delay:'0.3s'};
+            S.elements[3].animation = {...ANIMS.fadeIn, delay:'0.4s'};
+            S.elements[4].animation = {...ANIMS.slideLeft, delay:'0.5s'};
+            S.elements[5].animation = {...ANIMS.slideRight, delay:'0.6s'};
+            break;
+        }
+        case 'login': {
+            S.device='phone'; updateDevice();
+            addElement('circle', 137, 80, {w:100,h:100,bg:'linear-gradient(135deg,#00d4aa,#00f0c0)',borderRadius:50});
+            addElement('heading', 75, 210, {w:225,h:36,text:'Iniciar Sesion',fontSize:24,fontWeight:700,color:'#111',textAlign:'center'});
+            addElement('text', 75, 252, {w:225,h:20,text:'Ingresa tus credenciales',fontSize:13,color:'#888',textAlign:'center'});
+            addElement('input', 37, 300, {w:300,h:48,bg:'#f5f5f5',borderColor:'#e0e0e0',placeholder:'Correo electronico',fontSize:14,color:'#333'});
+            addElement('input', 37, 362, {w:300,h:48,bg:'#f5f5f5',borderColor:'#e0e0e0',placeholder:'Contrasena',fontSize:14,color:'#333'});
+            addElement('text', 250, 418, {w:100,h:18,text:'Olvide clave',fontSize:12,color:'#00d4aa',textAlign:'right'});
+            addElement('button', 37, 452, {w:300,h:50,text:'Ingresar',bg:'#00d4aa',color:'#000',borderRadius:25,fontSize:16});
+            addElement('divider', 75, 520, {w:225,h:1,bg:'#e0e0e0'});
+            addElement('text', 100, 540, {w:175,h:18,text:'O continuar con',fontSize:12,color:'#999',textAlign:'center'});
+            addElement('chip', 37, 572, {w:143,h:42,text:'Google',bg:'#f5f5f5',color:'#333',borderColor:'#e0e0e0',borderRadius:21,fontSize:13});
+            addElement('chip', 194, 572, {w:143,h:42,text:'Apple',bg:'#111',color:'#fff',borderColor:'#111',borderRadius:21,fontSize:13});
+            // Animaciones
+            S.elements[0].animation = {...ANIMS.scaleUp, delay:'0s'};
+            S.elements[1].animation = {...ANIMS.slideUp, delay:'0.15s'};
+            S.elements[3].animation = {...ANIMS.slideUp, delay:'0.3s'};
+            S.elements[4].animation = {...ANIMS.slideUp, delay:'0.4s'};
+            S.elements[6].animation = {...ANIMS.scaleUp, delay:'0.55s'};
+            break;
+        }
+        case 'dashboard': {
+            S.device='desktop'; updateDevice();
+            addElement('navbar', 0, 0, {w:1280,h:56,bg:'#0f0f1a',logo:'Dashboard',links:'Inicio,Analitica,Usuarios,Config',color:'#ccc',fontSize:13});
+            addElement('statcard', 20, 76, {w:200,h:100,bg:'#1a1a2e',value:'2,847',label:'Usuarios Activos',change:'+12.5%',changeColor:'#2ed573',valueSize:26});
+            addElement('statcard', 240, 76, {w:200,h:100,bg:'#1a1a2e',value:'$48.2K',label:'Ingresos',change:'+8.3%',changeColor:'#2ed573',valueSize:26});
+            addElement('statcard', 460, 76, {w:200,h:100,bg:'#1a1a2e',value:'1,293',label:'Pedidos',change:'+23.1%',changeColor:'#00d4aa',valueSize:26});
+            addElement('statcard', 680, 76, {w:200,h:100,bg:'#1a1a2e',value:'94.2%',label:'Satisfaccion',change:'+2.1%',changeColor:'#ffd166',valueSize:26});
+            addElement('barchart', 20, 196, {w:580,h:240,bg:'#141428',bars:'65,45,80,55,90,40,70',barColor:'#00d4aa',barColor2:'#00f0c0'});
+            addElement('heading', 30, 206, {w:200,h:24,text:'Visitas Semanales',fontSize:15,fontWeight:600,color:'#ccc'});
+            addElement('card', 620, 196, {w:260,h:240,bg:'#1a1a2e',borderColor:'#2a2a3e',showImage:false,title:'Actividad Reciente',desc:'Maria completo una compra\nCarlos se registro\nAna subio un archivo\nPedro actualizo perfil',titleSize:15,titleColor:'#f0f0f0',descSize:12,descColor:'#888',padding:16});
+            addElement('listitem', 620, 460, {w:260,h:52,bg:'#1a1a2e',borderColor:'#2a2a3e',title:'Maria Garcia',subtitle:'Completo una compra',iconBg:'#2ed573',iconColor:'#000'});
+            addElement('listitem', 620, 520, {w:260,h:52,bg:'#1a1a2e',borderColor:'#2a2a3e',title:'Carlos Lopez',subtitle:'Se registro en la app',iconBg:'#4facfe',iconColor:'#000'});
+            addElement('listitem', 620, 580, {w:260,h:52,bg:'#1a1a2e',borderColor:'#2a2a3e',title:'Ana Martinez',subtitle:'Subio un nuevo archivo',iconBg:'#ffd166',iconColor:'#000'});
+            addElement('card', 900, 196, {w:360,h:240,bg:'#1a1a2e',borderColor:'#2a2a3e',showImage:false,title:'Progreso del Proyecto',desc:'Diseno: 85%\nDesarrollo: 62%\nTesting: 40%\nDeploy: 15%',titleSize:15,titleColor:'#f0f0f0',descSize:12,descColor:'#888',padding:16});
+            addElement('footer', 0, 660, {w:1280,h:50,bg:'#0a0a14',color:'#444',text:'2025 NexusStudio Dashboard',links:'Soporte,Documentacion,API',fontSize:11});
+            // Animaciones
+            S.elements[1].animation = {...ANIMS.slideUp, delay:'0.1s'};
+            S.elements[2].animation = {...ANIMS.slideUp, delay:'0.2s'};
+            S.elements[3].animation = {...ANIMS.slideUp, delay:'0.3s'};
+            S.elements[4].animation = {...ANIMS.slideUp, delay:'0.4s'};
+            S.elements[5].animation = {...ANIMS.slideLeft, delay:'0.5s'};
+            S.elements[6].animation = {...ANIMS.fadeIn, delay:'0.6s'};
+            S.elements[7].animation = {...ANIMS.slideRight, delay:'0.5s'};
+            S.elements[10].animation = {...ANIMS.slideRight, delay:'0.7s'};
+            break;
+        }
+        case 'ecommerce': {
+            S.device='phone'; updateDevice();
+            addElement('searchbar', 15, 56, {w:345,h:44,bg:'#f5f5f5',borderColor:'#eee',borderRadius:22,placeholder:'Buscar productos...'});
+            addElement('chip', 15, 112, {w:70,h:30,text:'Todos',bg:'#00d4aa',color:'#000',borderColor:'#00d4aa',borderRadius:15,fontSize:12});
+            addElement('chip', 93, 112, {w:70,h:30,text:'Ropa',bg:'#f5f5f5',color:'#555',borderColor:'#eee',borderRadius:15,fontSize:12});
+            addElement('chip', 171, 112, {w:70,h:30,text:'Tech',bg:'#f5f5f5',color:'#555',borderColor:'#eee',borderRadius:15,fontSize:12});
+            addElement('chip', 249, 112, {w:70,h:30,text:'Hogar',bg:'#f5f5f5',color:'#555',borderColor:'#eee',borderRadius:15,fontSize:12});
+            addElement('heading', 15, 156, {w:200,h:28,text:'Populares',fontSize:18,fontWeight:700,color:'#111'});
+            addElement('card', 15, 192, {w:170,h:220,bg:'#fff',borderColor:'#f0f0f0',imageBg:'linear-gradient(135deg,#ff9a9e,#fad0c4)',imageHeight:120,title:'Camiseta Premium',desc:'$29.99',titleSize:13,descSize:15,descColor:'#00d4aa',shadow:'0 2px 12px rgba(0,0,0,.08)'});
+            addElement('card', 195, 192, {w:170,h:220,bg:'#fff',borderColor:'#f0f0f0',imageBg:'linear-gradient(135deg,#a18cd1,#fbc2eb)',imageHeight:120,title:'Audifonos Pro',desc:'$89.99',titleSize:13,descSize:15,descColor:'#00d4aa',shadow:'0 2px 12px rgba(0,0,0,.08)'});
+            addElement('card', 15, 426, {w:170,h:220,bg:'#fff',borderColor:'#f0f0f0',imageBg:'linear-gradient(135deg,#ffecd2,#fcb69f)',imageHeight:120,title:'Mochila Sport',desc:'$49.99',titleSize:13,descSize:15,descColor:'#00d4aa',shadow:'0 2px 12px rgba(0,0,0,.08)'});
+            addElement('card', 195, 426, {w:170,h:220,bg:'#fff',borderColor:'#f0f0f0',imageBg:'linear-gradient(135deg,#84fab0,#8fd3f4)',imageHeight:120,title:'Reloj Smart',desc:'$149.99',titleSize:13,descSize:15,descColor:'#00d4aa',shadow:'0 2px 12px rgba(0,0,0,.08)'});
+            addElement('navbar', 0, 762, {w:375,h:50,bg:'#fff',logo:'',links:'Inicio,Buscar,Favoritos,Perfil',color:'#999',shadow:'0 -1px 10px rgba(0,0,0,.05)'});
+            // Animaciones
+            S.elements[0].animation = {...ANIMS.slideDown, delay:'0s'};
+            S.elements[1].animation = {...ANIMS.scaleUp, delay:'0.1s'};
+            S.elements[5].animation = {...ANIMS.fadeIn, delay:'0.2s'};
+            S.elements[6].animation = {...ANIMS.slideUp, delay:'0.3s'};
+            S.elements[7].animation = {...ANIMS.slideUp, delay:'0.4s'};
+            S.elements[8].animation = {...ANIMS.slideUp, delay:'0.5s'};
+            S.elements[9].animation = {...ANIMS.slideUp, delay:'0.6s'};
+            break;
+        }
+        case 'social': {
+            S.device='phone'; updateDevice();
+            addElement('navbar', 0, 0, {w:375,h:56,bg:'#fff',logo:'Social',links:'',color:'#111',shadow:'0 1px 4px rgba(0,0,0,.06)'});
+            addElement('storycard', 0, 56, {}); // Will be replaced below
+            // Stories row as custom elements
+            addElement('avatar', 20, 68, {w:52,h:52,bg:'linear-gradient(135deg,#f093fb,#f5576c)',borderRadius:50,borderWidth:2,borderColor:'#f093fb'});
+            addElement('avatar', 82, 68, {w:52,h:52,bg:'linear-gradient(135deg,#4facfe,#00f2fe)',borderRadius:50,borderWidth:2,borderColor:'#4facfe'});
+            addElement('avatar', 144, 68, {w:52,h:52,bg:'linear-gradient(135deg,#ffd166,#ff8c42)',borderRadius:50,borderWidth:2,borderColor:'#ffd166'});
+            addElement('avatar', 206, 68, {w:52,h:52,bg:'linear-gradient(135deg,#a78bfa,#6366f1)',borderRadius:50,borderWidth:2,borderColor:'#a78bfa'});
+            addElement('avatar', 268, 68, {w:52,h:52,bg:'linear-gradient(135deg,#2ed573,#00d4aa)',borderRadius:50,borderWidth:2,borderColor:'#2ed573'});
+            // Remove the invalid storycard
+            S.elements = S.elements.filter(e => e.type !== 'storycard');
+            addElement('divider', 0, 130, {w:375,h:6,bg:'#f5f5f5'});
+            addElement('card', 15, 146, {w:345,h:350,bg:'#fff',borderColor:'#f0f0f0',showImage:true,imageBg:'linear-gradient(135deg,#667eea,#764ba2)',imageHeight:200,title:'Sofia Rodriguez',desc:'Increble atardecer en la playa hoy. La naturaleza nunca deja de sorprenderme.',titleSize:14,descColor:'#444',descSize:13,shadow:'0 1px 8px rgba(0,0,0,.06)',padding:14});
+            addElement('chip', 15, 400, {w:40,h:28,text:'<i class="fa-solid fa-heart" style="color:#ff4757"></i>',bg:'#fff5f5',color:'#ff4757',borderColor:'#ffe0e0',borderRadius:14,fontSize:11});
+            addElement('chip', 62, 400, {w:55,h:28,text:'<i class="fa-regular fa-comment"></i> 24',bg:'#f5f5ff',color:'#667eea',borderColor:'#e0e0ff',borderRadius:14,fontSize:11});
+            addElement('chip', 124, 400, {w:50,h:28,text:'<i class="fa-solid fa-share"></i> 8',bg:'#f5fff5',color:'#2ed573',borderColor:'#d0f0d0',borderRadius:14,fontSize:11});
+            addElement('card', 15, 506, {w:345,h:300,bg:'#fff',borderColor:'#f0f0f0',showImage:true,imageBg:'linear-gradient(135deg,#f093fb,#f5576c)',imageHeight:180,title:'Carlos Mendez',desc:'Nuevo proyecto de diseno completado. Que opinan del resultado?',titleSize:14,descColor:'#444',descSize:13,shadow:'0 1px 8px rgba(0,0,0,.06)',padding:14});
+            addElement('navbar', 0, 762, {w:375,h:50,bg:'#fff',logo:'',links:'Inicio,Explorar,Crear,Perfil',color:'#999',shadow:'0 -1px 10px rgba(0,0,0,.05)'});
+            // Animaciones
+            S.elements[0].animation = {...ANIMS.slideDown, delay:'0s'};
+            for(let i=1;i<=5;i++) S.elements[i].animation = {...ANIMS.scaleUp, delay:(i*0.08)+'s'};
+            S.elements[6].animation = {...ANIMS.slideUp, delay:'0.5s'};
+            S.elements[7].animation = {...ANIMS.slideUp, delay:'0.6s'};
+            S.elements[12].animation = {...ANIMS.slideUp, delay:'0.8s'};
+            break;
+        }
+    }
+
+    selectElement(null);
+    renderArtboard();
+    updateCode();
+    updateLayers();
+    updateTimeline();
+    updateProps();
+    toast('Ejemplo "'+name+'" cargado','success');
+}
+
+/* ============================================
+   COMPONENTES UI
+   ============================================ */
+function buildComponentsList() {
+    const container = document.getElementById('componentsList');
+    const cats = {};
+    for(const [type, comp] of Object.entries(COMPS)) {
+        if(!cats[comp.cat]) cats[comp.cat] = [];
+        cats[comp.cat].push({type, ...comp});
+    }
+    let html = '';
+    for(const [cat, items] of Object.entries(cats)) {
+        html += `<div class="comp-category"><div class="comp-cat-header">${cat}</div>`;
+        items.forEach(item => {
+            html += `<div class="comp-item" onclick="addElement('${item.type}')"><i class="fa-solid ${item.icon}"></i>${item.label}</div>`;
+        });
+        html += `</div>`;
+    }
+    container.innerHTML = html;
+}
+
+/* ============================================
+   HERRAMIENTAS
+   ============================================ */
+document.querySelectorAll('.tool-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        S.tool = btn.dataset.tool;
+        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        renderArtboard();
+    });
+});
+
+/* ============================================
+   DISPOSITIVOS
+   ============================================ */
+document.querySelectorAll('.device-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        S.device = btn.dataset.device;
+        document.querySelectorAll('.device-btn').forEach(b=>b.classList.remove('active'));
+        btn.classList.add('active');
+        updateDevice();
+    });
+});
+
+/* ============================================
+   TABS
+   ============================================ */
+document.querySelectorAll('.tab-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelectorAll('.tab-panel').forEach(p=>p.classList.remove('active'));
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab+'Panel').classList.add('active');
+        if(btn.dataset.tab==='code') updateCode();
+    });
+});
+
+/* ============================================
+   EJEMPLOS DROPDOWN
+   ============================================ */
+function toggleExamples() {
+    document.getElementById('examplesDropdown').classList.toggle('show');
+}
+document.addEventListener('click', (e) => {
+    if(!e.target.closest('#examplesBtn') && !e.target.closest('#examplesDropdown')) {
+        document.getElementById('examplesDropdown').classList.remove('show');
+    }
+});
+
+/* ============================================
+   EXPORTAR HTML COMPLETO
+   ============================================ */
+function exportHTML() {
+    const dev = DEVICES[S.device];
+    const code = generateCode();
+    const hasAnims = S.elements.some(e=>e.animation) || S.drawPaths.some(p=>p.animation);
+
+    let fullHTML = `<!DOCTYPE html>\n<html lang="es">\n<head>\n<meta charset="UTF-8">\n<meta name="viewport" content="width=device-width, initial-scale=1.0">\n<title>NexusStudio Export</title>\n<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">\n<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">\n<style>\n*{margin:0;padding:0;box-sizing:border-box;}\nbody{background:#0a0a0a;display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:'Space Grotesk',sans-serif;}\n`;
+    if(hasAnims) {
+        const usedKfs = new Set();
+        S.elements.forEach(e=>{if(e.animation) usedKfs.add(e.animation.kf);});
+        S.drawPaths.forEach(p=>{if(p.animation) usedKfs.add(p.animation.kf);});
+        const kfMap = {
+            'nx-fadeIn':'@keyframes nx-fadeIn{from{opacity:0}to{opacity:1}}',
+            'nx-slideUp':'@keyframes nx-slideUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}',
+            'nx-slideDown':'@keyframes nx-slideDown{from{opacity:0;transform:translateY(-30px)}to{opacity:1;transform:translateY(0)}}',
+            'nx-slideLeft':'@keyframes nx-slideLeft{from{opacity:0;transform:translateX(30px)}to{opacity:1;transform:translateX(0)}}',
+            'nx-slideRight':'@keyframes nx-slideRight{from{opacity:0;transform:translateX(-30px)}to{opacity:1;transform:translateX(0)}}',
+            'nx-scaleUp':'@keyframes nx-scaleUp{from{opacity:0;transform:scale(.7)}to{opacity:1;transform:scale(1)}}',
+            'nx-bounce':'@keyframes nx-bounce{0%{transform:scale(0)}50%{transform:scale(1.12)}70%{transform:scale(.95)}100%{transform:scale(1)}}',
+            'nx-pulse':'@keyframes nx-pulse{0%,100%{transform:scale(1)}50%{transform:scale(1.06)}}',
+            'nx-rotate':'@keyframes nx-rotate{from{transform:rotate(0)}to{transform:rotate(360deg)}}',
+            'nx-shake':'@keyframes nx-shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}40%{transform:translateX(6px)}60%{transform:translateX(-4px)}80%{transform:translateX(4px)}}',
+            'nx-drawStroke':'@keyframes nx-drawStroke{to{stroke-dashoffset:0}}'
+        };
+        usedKfs.forEach(kf=>{ if(kfMap[kf]) fullHTML += kfMap[kf]+`\n`; });
+    }
+    fullHTML += `</style>\n</head>\n<body>\n` + code + `\n</body>\n</html>`;
+
+    const blob = new Blob([fullHTML], {type:'text/html'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'nexusstudio-export.html';
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Archivo HTML exportado','success');
+}
+
+/* ============================================
+   TOAST
+   ============================================ */
+function toast(msg, type='') {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast ' + type;
+    requestAnimationFrame(()=>{
+        t.classList.add('show');
+        setTimeout(()=>t.classList.remove('show'), 2200);
+    });
+}
+
+/* ============================================
+   ATAJOS DE TECLADO
+   ============================================ */
+document.addEventListener('keydown', (e) => {
+    // No interceptar si estamos escribiendo en un input
+    if(e.target.tagName==='INPUT'||e.target.tagName==='TEXTAREA'||e.target.tagName==='SELECT') return;
+
+    if(e.key==='Delete'||e.key==='Backspace') {
+        if(S.selectedId) { removeElement(S.selectedId); toast('Elemento eliminado'); }
+    }
+    if(e.key==='v'||e.key==='V') {
+        S.tool='select';
+        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelector('[data-tool="select"]').classList.add('active');
+        renderArtboard();
+    }
+    if(e.key==='r'||e.key==='R') {
+        S.tool='rectangle';
+        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelector('[data-tool="rectangle"]').classList.add('active');
+        renderArtboard();
+    }
+    if(e.key==='c'||e.key==='C') {
+        if(!e.ctrlKey && !e.metaKey) {
+            S.tool='circle';
+            document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+            document.querySelector('[data-tool="circle"]').classList.add('active');
+            renderArtboard();
+        }
+    }
+    if(e.key==='t'||e.key==='T') {
+        S.tool='text';
+        document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+        document.querySelector('[data-tool="text"]').classList.add('active');
+        renderArtboard();
+    }
+    if(e.key==='d'||e.key==='D') {
+        if(!e.ctrlKey && !e.metaKey) {
+            S.tool='draw';
+            document.querySelectorAll('.tool-btn').forEach(b=>b.classList.remove('active'));
+            document.querySelector('[data-tool="draw"]').classList.add('active');
+            renderArtboard();
+        }
+    }
+    if((e.key==='z'||e.key==='Z') && (e.ctrlKey||e.metaKey)) {
+        // Deshacer simple: eliminar ultimo elemento
+        if(S.elements.length) {
+            const last = S.elements[S.elements.length-1];
+            removeElement(last.id);
+            toast('Deshacer');
+        }
+    }
+    if(e.key===' ') {
+        e.preventDefault();
+        togglePlay();
+    }
+});
+
+/* ============================================
+   INICIALIZACION
+   ============================================ */
+function init() {
+    buildComponentsList();
+    updateDevice();
+    updateCode();
+    updateLayers();
+    updateTimeline();
+    updateProps();
+
+    // Mensaje de bienvenida en el chat
+    addChatMsg('Bienvenido a <strong>NexusStudio Pro</strong>. Escribe instrucciones como:<br>"agregar boton azul"<br>"cambiar texto a Hola Mundo"<br>"animar deslizar"<br>"telefono" / "tablet" / "pc"<br>Escribe <strong>ayuda</strong> para mas opciones.', 'bot');
+
+    // Cargar ejemplo landing por defecto
+    setTimeout(()=> loadExample('landing'), 300);
+}
+
+init();
+</script>
 </body>
 </html>
